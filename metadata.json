@@ -1,0 +1,6 @@
+{
+  "name": "AI Quotes Extractor",
+  "description": "Ekstrak teks kutipan dari gambar dengan akurat menggunakan AI. Mendukung upload, drag & drop, dan paste dari clipboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
