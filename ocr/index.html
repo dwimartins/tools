@@ -1,34 +1,34 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="ms">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ekstraktor Teks Quotes</title>
-    <!-- Tailwind CSS untuk styling -->
+    <title>Pengekstrak Teks Petikan</title>
+    <!-- Tailwind CSS untuk gaya -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome untuk Icon -->
+    <!-- FontAwesome untuk Ikon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen p-4 md:p-8">
 
     <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
         
-        <!-- Header -->
+        <!-- Pengepala (Header) -->
         <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center relative">
             <h1 class="text-2xl md:text-3xl font-bold mb-2"><i class="fa-solid fa-brain mr-2"></i>AI Quotes Extractor</h1>
-            <p class="text-blue-100 text-sm md:text-base">Ekstrak teks gambar lebih akurat dengan kekuatan Gemini AI</p>
+            <p class="text-blue-100 text-sm md:text-base">Ekstrak teks gambar dengan lebih tepat menggunakan kuasa Gemini AI</p>
         </div>
 
         <div class="p-6 md:p-8">
             
-            <!-- Banner Error Custom (Pengganti Alert) -->
+            <!-- Sepanduk Ralat Tersuai (Pengganti Alert) -->
             <div id="error-banner" class="hidden mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-md shadow-sm transition-all duration-300">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
                     </div>
                     <div class="ml-3">
-                        <p id="error-text" class="text-sm text-red-700 font-medium">Terjadi kesalahan.</p>
+                        <p id="error-text" class="text-sm text-red-700 font-medium">Ralat telah berlaku.</p>
                     </div>
                     <button id="close-error" class="ml-auto text-red-400 hover:text-red-600">
                         <i class="fa-solid fa-xmark"></i>
@@ -36,7 +36,7 @@
                 </div>
             </div>
 
-            <!-- Konfigurasi API Key -->
+            <!-- Tetapan API Key -->
             <div class="mb-6 bg-indigo-50 p-5 rounded-xl border border-indigo-100">
                 <label for="api-key-input" class="block text-sm font-bold text-indigo-900 mb-2">
                     <i class="fa-solid fa-key mr-1"></i> Google Gemini API Key
@@ -47,55 +47,55 @@
                 </p>
             </div>
 
-            <!-- Area Upload / Paste -->
+            <!-- Kawasan Muat Naik / Tampal -->
             <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:bg-gray-100 transition duration-200 cursor-pointer relative">
                 <input type="file" id="file-input" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
                 <div class="pointer-events-none">
                     <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-500 mb-3"></i>
-                    <p class="text-gray-600 font-semibold text-lg">Klik untuk Upload, Drag & Drop,</p>
-                    <p class="text-gray-500 text-sm mt-1">atau tekan <kbd class="bg-gray-200 px-2 py-1 rounded text-gray-700 font-mono text-xs shadow-sm">Ctrl + V</kbd> untuk Paste gambar</p>
+                    <p class="text-gray-600 font-semibold text-lg">Klik untuk Muat Naik, Seret & Lepas,</p>
+                    <p class="text-gray-500 text-sm mt-1">atau tekan <kbd class="bg-gray-200 px-2 py-1 rounded text-gray-700 font-mono text-xs shadow-sm">Ctrl + V</kbd> untuk Tampal gambar</p>
                 </div>
             </div>
 
-            <!-- Preview Gambar -->
+            <!-- Pratonton Gambar -->
             <div id="preview-container" class="mt-6 hidden">
-                <h3 class="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide">Preview Gambar</h3>
+                <h3 class="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide">Pratonton Gambar</h3>
                 <div class="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex justify-center items-center h-48 md:h-64 group">
-                    <img id="image-preview" class="max-h-full max-w-full object-contain" src="" alt="Preview">
+                    <img id="image-preview" class="max-h-full max-w-full object-contain" src="" alt="Pratonton">
                     <button id="btn-remove-image" class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-md transition transform hover:scale-105">
                         <i class="fa-solid fa-times"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Pengaturan & Aksi -->
+            <!-- Tetapan & Tindakan -->
             <div class="mt-6">
                 <button id="btn-extract" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3.5 px-4 rounded-xl transition duration-200 flex justify-center items-center shadow-md disabled:shadow-none">
                     <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Analisis dengan AI Sekarang
                 </button>
             </div>
 
-            <!-- Area Progress Loading -->
+            <!-- Kawasan Pemuatan Kemajuan -->
             <div id="progress-container" class="mt-6 hidden">
                 <div class="flex justify-center items-center text-sm font-medium text-indigo-600 mb-2 bg-indigo-50 py-3 rounded-lg border border-indigo-100">
                     <i class="fa-solid fa-circle-notch fa-spin text-xl mr-3"></i>
-                    <span id="status-text">AI sedang mengamati gambar...</span>
+                    <span id="status-text">AI sedang meneliti gambar...</span>
                 </div>
             </div>
 
-            <!-- Hasil Ekstraksi (Text Area untuk Review) -->
+            <!-- Hasil Pengekstrakan (Kawasan Teks untuk Semakan) -->
             <div id="result-container" class="mt-8 hidden">
                 <h3 class="text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wide flex justify-between items-end">
-                    <span>Hasil Ekstraksi & Review Manual</span>
+                    <span>Hasil Pengekstrakan & Semakan Manual</span>
                 </h3>
-                <textarea id="result-text" rows="6" class="w-full border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-y text-gray-800 shadow-inner" placeholder="Hasil teks akan muncul di sini..."></textarea>
+                <textarea id="result-text" rows="6" class="w-full border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-y text-gray-800 shadow-inner" placeholder="Hasil teks akan dipaparkan di sini..."></textarea>
                 
                 <div class="mt-4 flex justify-end gap-3">
                     <button id="btn-clear" class="px-4 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition flex items-center">
                         <i class="fa-solid fa-trash-can mr-2"></i> Bersihkan
                     </button>
                     <button id="btn-copy" class="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition shadow-md flex items-center">
-                        <i class="fa-solid fa-copy mr-2"></i> Copy Teks
+                        <i class="fa-solid fa-copy mr-2"></i> Salin Teks
                     </button>
                 </div>
             </div>
@@ -103,7 +103,7 @@
         </div>
     </div>
 
-    <!-- Script Logika Aplikasi -->
+    <!-- Skrip Logik Aplikasi -->
     <script>
         const fileInput = document.getElementById('file-input');
         const dropZone = document.getElementById('drop-zone');
@@ -128,11 +128,11 @@
         let currentFile = null;
         let currentBase64 = null; 
 
-        // --- HANDLER ERROR NOTIFICATION ---
+        // --- PENGENDALI PEMBERITAHUAN RALAT ---
         function showError(message) {
             errorText.innerText = message;
             errorBanner.classList.remove('hidden');
-            // Auto hide setelah 6 detik
+            // Sembunyi automatik selepas 6 saat
             setTimeout(() => {
                 errorBanner.classList.add('hidden');
             }, 6000);
@@ -142,7 +142,7 @@
             errorBanner.classList.add('hidden');
         });
 
-        // --- HANDLER UPLOAD & PASTE GAMBAR ---
+        // --- PENGENDALI MUAT NAIK & TAMPAL GAMBAR ---
         fileInput.addEventListener('change', function(e) {
             if (e.target.files && e.target.files[0]) {
                 handleFile(e.target.files[0]);
@@ -150,7 +150,7 @@
         });
 
         window.addEventListener('paste', function(e) {
-            // Hindari paste gambar jika sedang mengetik di input/textarea
+            // Elakkan menampal gambar jika sedang menaip di input/textarea
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
@@ -182,11 +182,11 @@
 
         function handleFile(file) {
             if (!file.type.startsWith('image/')) {
-                showError('Tolong masukkan file yang valid berupa gambar!');
+                showError('Sila masukkan fail yang sah berformat gambar!');
                 return;
             }
             
-            errorBanner.classList.add('hidden'); // Sembunyikan error lama
+            errorBanner.classList.add('hidden'); // Sembunyikan ralat lama
             currentFile = file;
             
             const reader = new FileReader();
@@ -194,7 +194,7 @@
                 const dataUrl = e.target.result;
                 imagePreview.src = dataUrl;
                 
-                // Ekstrak base64 murni
+                // Ekstrak base64 tulen
                 currentBase64 = dataUrl.split(',')[1];
 
                 previewContainer.classList.remove('hidden');
@@ -216,11 +216,11 @@
             progressContainer.classList.add('hidden');
         });
 
-        // --- HANDLER GEMINI AI API ---
+        // --- PENGENDALI GEMINI AI API ---
         async function processWithGemini(base64Data, mimeType, userApiKey) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${userApiKey}`;
             
-            const promptInstruction = "Ekstrak teks (quotes) dari gambar ini. Tuliskan ulang teksnya dengan rapi, perbaiki jika ada typo ringan akibat font yang sulit dibaca. Jangan sertakan teks penjelasan apapun selain isi dari quote dan nama penulisnya (jika ada). Jangan masukkan watermark/username sosial media.";
+            const promptInstruction = "Ekstrak teks (petikan) dari gambar ini. Tulis semula teks dengan kemas, betulkan jika ada salah taip (typo) kecil akibat fon yang sukar dibaca. Jangan sertakan teks penjelasan apa-apa pun selain isi petikan dan nama penulisnya (jika ada). Jangan masukkan tera air (watermark)/nama pengguna media sosial.";
 
             const payload = {
                 contents: [{
@@ -245,18 +245,18 @@
 
                     if (!response.ok) {
                         const errData = await response.json();
-                        // Lempar error spesifik jika API key salah
+                        // Lemparkan ralat spesifik jika API key salah
                         if (response.status === 400 || response.status === 403) {
-                            throw new Error("API Key tidak valid atau tidak memiliki akses.");
+                            throw new Error("API Key tidak sah atau tidak mempunyai akses.");
                         }
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        throw new Error(`Ralat HTTP! status: ${response.status}`);
                     }
 
                     const result = await response.json();
-                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "Tidak ada teks yang terdeteksi pada gambar tersebut.";
+                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "Tiada teks dikesan pada gambar tersebut.";
                 } catch (error) {
-                    // Jika error karena API Key salah, jangan retry, langsung gagal
-                    if (error.message.includes("API Key tidak valid")) {
+                    // Jika ralat kerana API Key salah, jangan cuba lagi (retry), terus gagal
+                    if (error.message.includes("API Key tidak sah")) {
                         throw error;
                     }
                     if (i === retries - 1) throw error;
@@ -290,20 +290,20 @@
                 resultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
             } catch (error) {
-                console.error("Error AI:", error);
-                if (error.message.includes("API Key tidak valid")) {
-                    showError('API Key yang Anda masukkan salah atau tidak valid. Silakan periksa kembali!');
+                console.error("Ralat AI:", error);
+                if (error.message.includes("API Key tidak sah")) {
+                    showError('API Key yang anda masukkan salah atau tidak sah. Sila semak semula!');
                 } else {
-                    showError('Gagal menghubungi Server AI. Pastikan koneksi internet stabil atau coba lagi nanti.');
+                    showError('Gagal menghubungi Pelayan AI. Pastikan sambungan internet anda stabil atau cuba sebentar lagi.');
                 }
             } finally {
                 btnExtract.disabled = false;
-                btnExtract.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Analisis dengan AI Kembali';
+                btnExtract.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Analisis dengan AI Sekali Lagi';
                 progressContainer.classList.add('hidden');
             }
         });
 
-        // --- HANDLER BUTTON HASIL ---
+        // --- PENGENDALI BUTANG HASIL ---
         btnCopy.addEventListener('click', () => {
             if (!resultText.value.trim()) return;
             
@@ -317,10 +317,10 @@
                     btnCopy.classList.replace('bg-emerald-600', 'bg-green-500');
                 }, 2000);
             }).catch(err => {
-                // Fallback
+                // Sandaran (Fallback)
                 resultText.select();
                 document.execCommand('copy');
-                // Tampilkan notifikasi non-alert
+                // Paparkan pemberitahuan tanpa amaran (alert)
                 const originalText = btnCopy.innerHTML;
                 btnCopy.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Disalin manual!';
                 setTimeout(() => btnCopy.innerHTML = originalText, 2000);
