@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Catatan Hierarki</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 - Dark mode base */
+            color: #f1f5f9; /* Slate 100 */
+        }
+        
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        input[type="text"] {
+            text-overflow: ellipsis;
+        }
+
+        /* Auto-resize textarea */
+        textarea {
+            resize: none;
+            overflow: hidden;
+            min-height: 1.5em; 
+        }
+
+        /* Animasi */
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+        
+        .dragging { opacity: 0.5; }
+    </style>
+</head>
+<body class="selection:bg-indigo-500/30 min-h-screen">
+
+    <!-- Header / Navbar -->
+    <nav class="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 shadow-sm px-6 py-4">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-white">Brain<span class="text-indigo-400">Tree</span>.</h1>
+                <p class="text-xs text-slate-400 font-medium uppercase tracking-widest mt-1">Pemetaan Ide & Rencana</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button 
+                    onclick="openEditor()"
+                    class="bg-indigo-600 text-white px-6 py-2.5 rounded-lg hover:bg-indigo-500 transition-all font-semibold shadow-[0_0_15px_rgba(79,70,229,0.3)] flex items-center gap-2"
+                >
+                    <i data-lucide="plus" class="w-5 h-5"></i>
+                    Catatan Baru
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-6">
+        <!-- Notes List (Grid Dashboard) -->
+        <div id="notesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Dynamic Content Here -->
+        </div>
+    </main>
+
+    <!-- Full Screen Editor Modal -->
+    <div id="editorModal" class="fixed inset-0 z-40 bg-slate-950 overflow-y-auto hidden">
+        <div class="max-w-5xl mx-auto min-h-screen bg-slate-900 shadow-2xl border-x border-slate-800 p-6 md:p-12 relative">
+            
+            <!-- Editor Header -->
+            <div class="sticky top-0 bg-slate-900 z-30 pb-6 border-b border-slate-800 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4">
+                <input 
+                    type="text" 
+                    id="titleInput"
+                    placeholder="Judul Catatan Besar..."
+                    class="w-full text-3xl font-bold border-none outline-none focus:ring-0 placeholder:text-slate-600 text-white bg-transparent"
+                />
+                <div class="flex gap-3 shrink-0">
+                    <button id="editModeBtn" onclick="toggleEditMode()" class="px-5 py-2 bg-slate-800 text-slate-300 font-semibold hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 flex items-center gap-2">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i> Mode Edit
+                    </button>
+                    <button onclick="closeEditor()" class="px-5 py-2 text-slate-300 font-semibold hover:bg-slate-800 rounded-lg transition-colors border border-slate-700">Tutup</button>
+                    <button id="saveBtn" onclick="saveNote()" class="bg-indigo-600 text-white px-8 py-2 rounded-lg font-semibold hover:bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.3)] transition-all flex items-center gap-2 hidden">
+                        <i data-lucide="save" class="w-4 h-4"></i> Simpan
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tree Editor Container -->
+            <div class="space-y-4 relative z-20">
+                <div id="treeContainer" class="pl-2">
+                    <!-- Tree Nodes will be rendered here -->
+                </div>
+
+                <button 
+                    id="addRootBtn"
+                    onclick="addRootNode()"
+                    class="mt-8 px-6 py-3 border border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-indigo-400 hover:border-indigo-500 hover:bg-indigo-500/10 transition-all flex items-center gap-2 font-semibold w-full md:w-auto hidden"
+                >
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> Tambah Cabang Utama
+                </button>
+            </div>
+            
+            <div class="h-32"></div> <!-- Spacer -->
+        </div>
+    </div>
+
+    <!-- Notifikasi Sukses Simpan (Toast) -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-emerald-600/90 backdrop-blur-md text-white px-6 py-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] border border-emerald-500 transform translate-y-32 opacity-0 transition-all duration-300 z-50 flex items-center gap-3 font-semibold pointer-events-none">
+        <i data-lucide="check-circle" class="w-5 h-5"></i>
+        <span>Catatan berhasil disimpan!</span>
+    </div>
+
+    <!-- Lightbox Modal untuk Preview Gambar Full -->
+    <div id="lightbox" class="fixed inset-0 z-50 bg-black/90 hidden items-center justify-center p-4 backdrop-blur-sm" onclick="closeLightbox()">
+        <button class="absolute top-6 right-6 text-white bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-md transition-colors" onclick="closeLightbox()">
+            <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+        <img id="lightboxImage" src="" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-fade-in" onclick="event.stopPropagation()">
+    </div>
+
+    <!-- Firebase SDK & Application Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, updateDoc, onSnapshot, deleteDoc, doc, query, orderBy } 
+        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA8lQ2xYxho8ZELwUl1FK4Xn9-OWqf26Qw",
+            authDomain: "notes-18536.firebaseapp.com",
+            projectId: "notes-18536",
+            storageBucket: "notes-18536.firebasestorage.app",
+            messagingSenderId: "357079507581",
+            appId: "1:357079507581:web:4a4ccedcafc7fbc2eec714"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let notesList = [];
+        let currentNoteId = null; 
+        let currentTree = []; 
+        let isEditMode = false;
+        let draggedNodeId = null;
+        
+        lucide.createIcons();
+
+        // ---------------------------------
+        // 1. UTILITIES (Compress, Toast, Text Formatter)
+        // ---------------------------------
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                if (file.size <= 500 * 1024) { 
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                    return;
+                }
+
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_WIDTH = 1280;
+                    const MAX_HEIGHT = 1280;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    } else {
+                        if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8)); 
+                };
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('translate-y-32', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-32', 'opacity-0');
+            }, 3000);
+        }
+
+        // Fitur mengubah `- ` menjadi `● ` secara instan saat mengetik
+        window.formatTextarea = (textarea) => {
+            const val = textarea.value;
+            if (/(^|\n)-\s/.test(val)) {
+                const selStart = textarea.selectionStart;
+                const replaced = val.replace(/(^|\n)-\s/g, '$1● ');
+                if (val !== replaced) {
+                    textarea.value = replaced;
+                    textarea.selectionStart = textarea.selectionEnd = selStart;
+                }
+            }
+        };
+
+        // ---------------------------------
+        // 2. RECURSIVE TREE LOGIC & THEME
+        // ---------------------------------
+        function findNodeAndParent(nodes, id, parent = null) {
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodes[i].id === id) return { node: nodes[i], parent, index: i, siblings: nodes };
+                if (nodes[i].children && nodes[i].children.length > 0) {
+                    const result = findNodeAndParent(nodes[i].children, id, nodes[i]);
+                    if (result) return result;
+                }
+            }
+            return null;
+        }
+
+        function normalizeTreeData(nodes) {
+            return nodes.map(node => {
+                if (node.image && !node.images) node.images = [node.image];
+                if (!node.images) node.images = [];
+                if (node.children) node.children = normalizeTreeData(node.children);
+                return node;
+            });
+        }
+
+        function getTypographyByDepth(depth) {
+            if (depth === 0) return "text-lg font-bold text-white";
+            if (depth === 1) return "text-base font-semibold text-slate-200";
+            if (depth === 2) return "text-sm font-medium text-slate-300";
+            if (depth === 3) return "text-sm font-normal text-slate-400";
+            return "text-sm font-normal text-slate-500";
+        }
+
+        // Tema Warna Garis & Ikon berdasarkan Kedalaman (Tier)
+        function getColorVarsByDepth(depth) {
+            const themes = [
+                { line: "border-slate-600", fill: "text-slate-400 fill-slate-400" }, // 0 (Root)
+                { line: "border-indigo-500", fill: "text-indigo-400 fill-indigo-400" }, // 1
+                { line: "border-emerald-500", fill: "text-emerald-400 fill-emerald-400" }, // 2
+                { line: "border-amber-500", fill: "text-amber-400 fill-amber-400" }, // 3
+                { line: "border-rose-500", fill: "text-rose-400 fill-rose-400" }, // 4
+                { line: "border-cyan-500", fill: "text-cyan-400 fill-cyan-400" }  // 5+
+            ];
+            return themes[Math.min(depth, 5)];
+        }
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        function renderNodeHTML(node, depth = 0) {
+            const hasChildren = node.children && node.children.length > 0;
+            const colorVars = getColorVarsByDepth(depth);
+            const childColorVars = getColorVarsByDepth(depth + 1);
+            const typoClass = getTypographyByDepth(depth);
+            
+            // Render Ikon Dinamis
+            let toggleIcon = `<i data-lucide="circle" class="w-1.5 h-1.5 ${colorVars.fill}"></i>`;
+            if (hasChildren) {
+                toggleIcon = node.expanded 
+                    ? `<i data-lucide="chevron-down" class="w-5 h-5 ${colorVars.fill} transition-transform"></i>` 
+                    : `<i data-lucide="chevron-right" class="w-5 h-5 ${colorVars.fill} transition-transform"></i>`;
+            }
+
+            // Komponen Mode Edit vs Mode Baca
+            let textElementHTML = '';
+            if (isEditMode) {
+                textElementHTML = `<textarea 
+                    id="input-${node.id}" rows="1"
+                    oninput="formatTextarea(this); updateNodeText('${node.id}', this.value); autoResize(this);"
+                    onkeydown="handleKeyDown(event, '${node.id}')"
+                    class="w-full bg-transparent border-b border-transparent focus:border-indigo-500 outline-none ${typoClass} py-0.5 transition-colors auto-resize-textarea leading-relaxed" 
+                    placeholder="Ketik poin disini...">${node.text}</textarea>`;
+            } else {
+                // Di Mode Baca: Terapkan Custom Style Highlight [teks]
+                let displayText = node.text || '<span class="text-slate-600 italic">Kosong...</span>';
+                displayText = displayText.replace(/\[(.*?)\]/g, '<span class="bg-amber-400/20 text-amber-400 px-1.5 py-0.5 rounded font-bold tracking-wide">$1</span>');
+                displayText = displayText.replace(/\n/g, '<br>'); // Pertahankan garis baru
+                
+                textElementHTML = `<div class="w-full py-0.5 leading-relaxed ${typoClass} min-h-[1.5em] pt-1">${displayText}</div>`;
+            }
+
+            const dragHandle = isEditMode ? `
+                <div class="absolute -left-6 top-3 text-slate-600 hover:text-white cursor-grab opacity-0 group-hover/row:opacity-100 transition-opacity z-10"
+                     onmousedown="document.getElementById('container-${node.id}').setAttribute('draggable', 'true')"
+                     onmouseup="document.getElementById('container-${node.id}').setAttribute('draggable', 'false')"
+                     onmouseleave="document.getElementById('container-${node.id}').setAttribute('draggable', 'false')">
+                    <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                </div>
+            ` : '';
+
+            const actionButtons = isEditMode ? `
+                <div class="opacity-0 group-hover/row:opacity-100 flex items-center gap-1 transition-opacity absolute right-0 top-0 bg-slate-800/95 backdrop-blur px-2 py-1 rounded-lg shadow-xl border border-slate-700/50 z-20">
+                    <label class="cursor-pointer p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-700 rounded transition-colors" title="Sisipkan Gambar">
+                        <i data-lucide="image-plus" class="w-4 h-4"></i>
+                        <input type="file" multiple class="hidden" accept="image/*" onchange="uploadNodeImages('${node.id}', this)">
+                    </label>
+                    <button onclick="addChild('${node.id}')" class="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-slate-700 rounded transition-colors" title="Tambah Sub-poin">
+                        <i data-lucide="corner-down-right" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="deleteNode('${node.id}')" class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded transition-colors" title="Hapus">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            ` : '';
+
+            let thumbnailsHTML = '';
+            if (node.images && node.images.length > 0) {
+                thumbnailsHTML = `
+                <div class="flex flex-wrap gap-4 mt-3 mb-2">
+                    ${node.images.map((imgSrc, idx) => `
+                        <div class="relative group/thumb ring-1 ring-slate-700 hover:ring-indigo-500 rounded-lg transition-all shadow-md">
+                            <img src="${imgSrc}" class="h-24 w-28 object-cover rounded-lg cursor-zoom-in" onclick="openLightbox('${imgSrc}')" alt="Attachment">
+                            ${isEditMode ? `
+                            <button onclick="removeNodeImage('${node.id}', ${idx})" class="absolute -top-2 -right-2 bg-slate-800 text-red-400 hover:text-red-300 hover:bg-slate-700 rounded-full p-1.5 opacity-0 group-hover/thumb:opacity-100 transition-all border border-slate-600 shadow-xl z-10">
+                                <i data-lucide="x" class="w-3 h-3"></i>
+                            </button>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>`;
+            }
+
+            // Struktur Garis Siku (L-Shape) yang presisi
+            const horizontalBranch = depth > 0 ? `<div class="absolute -left-6 top-[22px] w-6 border-t-2 ${colorVars.line} pointer-events-none rounded-tl-sm"></div>` : '';
+
+            return `
+            <div class="${depth > 0 ? 'mt-2' : 'mt-4'} relative transition-all duration-200" id="container-${node.id}"
+                 ondragstart="handleDragStart(event, '${node.id}')"
+                 ondragover="handleDragOver(event)"
+                 ondragenter="handleDragEnter(event, '${node.id}')"
+                 ondragleave="handleDragLeave(event, '${node.id}')"
+                 ondrop="handleDrop(event, '${node.id}')"
+                 ondragend="handleDragEnd(event)">
+                
+                ${horizontalBranch}
+
+                <div class="flex items-start gap-3 group/row hover:bg-slate-800/60 p-2 -ml-2 rounded-xl transition-colors relative z-10">
+                    ${dragHandle}
+                    
+                    <button onclick="toggleNode('${node.id}')" class="mt-1 w-6 h-6 flex items-center justify-center bg-slate-900 rounded group/toggle transition-colors shrink-0 z-10 relative">
+                        ${toggleIcon}
+                    </button>
+                    
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-start gap-2 relative">
+                            ${textElementHTML}
+                            ${actionButtons}
+                        </div>
+                        ${thumbnailsHTML}
+                    </div>
+                </div>
+                
+                <!-- Rekursi Anak & Garis Vertikal -->
+                <div class="children-container ${node.expanded ? 'block' : 'hidden'} ml-3 border-l-2 ${childColorVars.line} pl-6 relative">
+                    ${hasChildren ? node.children.map(child => renderNodeHTML(child, depth + 1)).join('') : ''}
+                </div>
+            </div>
+            `;
+        }
+
+        function renderTree() {
+            const container = document.getElementById('treeContainer');
+            if (currentTree.length === 0) {
+                container.innerHTML = `
+                    <div class="text-slate-500 italic text-sm py-4 border-l-2 border-slate-700 pl-4 mt-4">
+                        Belum ada poin. Klik "Mode Edit" lalu tekan "Tambah Cabang Utama".
+                    </div>`;
+            } else {
+                container.innerHTML = currentTree.map(node => renderNodeHTML(node, 0)).join('');
+            }
+            lucide.createIcons();
+            
+            if (isEditMode) {
+                setTimeout(() => {
+                    document.querySelectorAll('.auto-resize-textarea').forEach(el => autoResize(el));
+                }, 0);
+            }
+        }
+
+        // --- EDIT MODE TOGGLE ---
+        window.toggleEditMode = () => {
+            isEditMode = !isEditMode;
+            updateEditModeUI();
+        };
+
+        function updateEditModeUI() {
+            const btn = document.getElementById('editModeBtn');
+            if (isEditMode) {
+                btn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i> Mode Baca';
+                btn.classList.replace('bg-slate-800', 'bg-indigo-600');
+                btn.classList.replace('text-slate-300', 'text-white');
+            } else {
+                btn.innerHTML = '<i data-lucide="edit-2" class="w-4 h-4"></i> Mode Edit';
+                btn.classList.replace('bg-indigo-600', 'bg-slate-800');
+                btn.classList.replace('text-white', 'text-slate-300');
+            }
+            
+            document.getElementById('titleInput').readOnly = !isEditMode;
+            document.getElementById('saveBtn').style.display = isEditMode ? 'flex' : 'none';
+            document.getElementById('addRootBtn').style.display = isEditMode ? 'flex' : 'none';
+            
+            renderTree();
+        }
+
+        // --- DRAG AND DROP LOGIC ---
+        window.handleDragStart = (e, id) => {
+            if (!isEditMode) return;
+            draggedNodeId = id;
+            e.dataTransfer.effectAllowed = "move";
+            e.currentTarget.classList.add('dragging');
+            e.stopPropagation();
+        };
+
+        window.handleDragOver = (e) => {
+            if (!isEditMode) return;
+            e.preventDefault(); 
+            e.dataTransfer.dropEffect = "move";
+        };
+
+        window.handleDragEnter = (e, id) => {
+            if (!isEditMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (id !== draggedNodeId) {
+                const el = document.getElementById(`container-${id}`);
+                if(el) el.classList.add('bg-indigo-500/10', 'ring-1', 'ring-indigo-500', 'rounded-xl');
+            }
+        };
+
+        window.handleDragLeave = (e, id) => {
+            if (!isEditMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const el = document.getElementById(`container-${id}`);
+            if(el) el.classList.remove('bg-indigo-500/10', 'ring-1', 'ring-indigo-500', 'rounded-xl');
+        };
+
+        window.handleDrop = (e, targetId) => {
+            if (!isEditMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const el = document.getElementById(`container-${targetId}`);
+            if(el) el.classList.remove('bg-indigo-500/10', 'ring-1', 'ring-indigo-500', 'rounded-xl');
+
+            if (!draggedNodeId || draggedNodeId === targetId) return;
+
+            const draggedResult = findNodeAndParent(currentTree, draggedNodeId);
+            
+            const isDescendant = (node, targetId) => {
+                if (!node || !node.children) return false;
+                for (let child of node.children) {
+                    if (child.id === targetId || isDescendant(child, targetId)) return true;
+                }
+                return false;
+            };
+
+            if (draggedResult && !isDescendant(draggedResult.node, targetId)) {
+                const targetResult = findNodeAndParent(currentTree, targetId);
+                if (targetResult) {
+                    const nodeToMove = draggedResult.siblings.splice(draggedResult.index, 1)[0];
+                    if (!targetResult.node.children) targetResult.node.children = [];
+                    targetResult.node.children.push(nodeToMove);
+                    targetResult.node.expanded = true;
+                    renderTree();
+                }
+            }
+            draggedNodeId = null;
+        };
+
+        window.handleDragEnd = (e) => {
+            e.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('.bg-indigo-500\\/10').forEach(el => {
+                el.classList.remove('bg-indigo-500/10', 'ring-1', 'ring-indigo-500', 'rounded-xl');
+            });
+            e.currentTarget.setAttribute('draggable', 'false');
+            draggedNodeId = null;
+        };
+
+        // --- TREE ACTIONS & KEYBOARD NAVIGATION ---
+        window.focusNode = (id) => {
+            setTimeout(() => {
+                const el = document.getElementById(`input-${id}`);
+                if (el) {
+                    el.focus();
+                    const val = el.value;
+                    el.value = '';
+                    el.value = val; 
+                }
+            }, 50);
+        };
+
+        window.handleKeyDown = (e, id) => {
+            if (!isEditMode) return;
+
+            if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault(); 
+                const result = findNodeAndParent(currentTree, id);
+                if (result) {
+                    const newId = 'node_' + Date.now();
+                    const newNode = { id: newId, text: "", images: [], expanded: true, children: [] };
+                    result.siblings.splice(result.index + 1, 0, newNode);
+                    renderTree();
+                    focusNode(newId);
+                }
+            } 
+            else if (e.key === 'Enter' && !e.shiftKey) {
+                setTimeout(() => autoResize(e.target), 0);
+            }
+            else if (e.key === 'Tab') {
+                e.preventDefault();
+                const result = findNodeAndParent(currentTree, id);
+                if (result) {
+                    if (e.shiftKey) {
+                        if (result.parent) {
+                            const grandParentResult = findNodeAndParent(currentTree, result.parent.id);
+                            if (grandParentResult) {
+                                const nodeToMove = result.siblings.splice(result.index, 1)[0];
+                                grandParentResult.siblings.splice(grandParentResult.index + 1, 0, nodeToMove);
+                                renderTree();
+                                focusNode(nodeToMove.id);
+                            }
+                        }
+                    } else {
+                        if (result.index > 0) {
+                            const prevSibling = result.siblings[result.index - 1];
+                            const nodeToMove = result.siblings.splice(result.index, 1)[0];
+                            if (!prevSibling.children) prevSibling.children = [];
+                            prevSibling.children.push(nodeToMove);
+                            prevSibling.expanded = true;
+                            renderTree();
+                            focusNode(nodeToMove.id);
+                        }
+                    }
+                }
+            } 
+            else if (e.key === 'Backspace') {
+                const el = e.target;
+                if (el.value === "") {
+                    e.preventDefault();
+                    const result = findNodeAndParent(currentTree, id);
+                    if (result) {
+                        const hasChildren = result.node.children && result.node.children.length > 0;
+                        if (!hasChildren) {
+                            let focusId = null;
+                            if (result.index > 0) {
+                                focusId = result.siblings[result.index - 1].id;
+                            } else if (result.parent) {
+                                focusId = result.parent.id;
+                            }
+                            
+                            if (result.siblings.length > 1 || result.parent) {
+                                result.siblings.splice(result.index, 1);
+                                renderTree();
+                                if (focusId) focusNode(focusId);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        window.updateNodeText = (id, value) => {
+            const result = findNodeAndParent(currentTree, id);
+            if (result) result.node.text = value;
+        };
+
+        window.toggleNode = (id) => {
+            const result = findNodeAndParent(currentTree, id);
+            if (result && result.node.children.length > 0) {
+                result.node.expanded = !result.node.expanded;
+                renderTree();
+            }
+        };
+
+        window.addRootNode = () => {
+            const newNodeId = 'node_' + Date.now();
+            currentTree.push({ id: newNodeId, text: "", images: [], expanded: true, children: [] });
+            renderTree();
+            setTimeout(() => document.getElementById(`input-${newNodeId}`)?.focus(), 50);
+        };
+
+        window.addChild = (parentId) => {
+            if (!isEditMode) return;
+            const result = findNodeAndParent(currentTree, parentId);
+            if (result) {
+                const newNodeId = 'node_' + Date.now();
+                if (!result.node.children) result.node.children = [];
+                result.node.children.push({ id: newNodeId, text: "", images: [], expanded: true, children: [] });
+                result.node.expanded = true; 
+                renderTree();
+                setTimeout(() => document.getElementById(`input-${newNodeId}`)?.focus(), 50);
+            }
+        };
+
+        window.deleteNode = (id) => {
+            if (!isEditMode) return;
+            const result = findNodeAndParent(currentTree, id);
+            if (result) {
+                const hasSub = result.node.children && result.node.children.length > 0;
+                if(hasSub && !confirm("Poin ini memiliki cabang. Yakin ingin menghapus semuanya?")) return;
+                result.siblings.splice(result.index, 1);
+                renderTree();
+            }
+        };
+
+        window.uploadNodeImages = async (id, inputEl) => {
+            if (!isEditMode) return;
+            const files = Array.from(inputEl.files);
+            if (files.length === 0) return;
+            
+            const result = findNodeAndParent(currentTree, id);
+            if (!result) return;
+            if (!result.node.images) result.node.images = [];
+
+            const compressedImages = await Promise.all(files.map(file => compressImage(file)));
+            
+            result.node.images = [...result.node.images, ...compressedImages];
+            renderTree();
+            inputEl.value = ""; 
+        };
+
+        window.removeNodeImage = (nodeId, imageIndex) => {
+            if (!isEditMode) return;
+            const result = findNodeAndParent(currentTree, nodeId);
+            if (result && result.node.images) {
+                result.node.images.splice(imageIndex, 1);
+                renderTree();
+            }
+        };
+
+        // --- LIGHTBOX ACTIONS ---
+        window.openLightbox = (src) => {
+            document.getElementById('lightboxImage').src = src;
+            const lb = document.getElementById('lightbox');
+            lb.classList.remove('hidden');
+            lb.classList.add('flex');
+        };
+
+        window.closeLightbox = () => {
+            const lb = document.getElementById('lightbox');
+            lb.classList.add('hidden');
+            lb.classList.remove('flex');
+            document.getElementById('lightboxImage').src = "";
+        };
+
+        // ---------------------------------
+        // 3. FIREBASE CRUD (DASHBOARD)
+        // ---------------------------------
+        const q = query(collection(db, "nestedIdeas"), orderBy("createdAt", "desc"));
+        onSnapshot(q, (snapshot) => {
+            notesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderDashboard();
+        });
+
+        function renderDashboard() {
+            const grid = document.getElementById('notesGrid');
+            
+            if(notesList.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-20 text-center bg-slate-800/30 border border-slate-700/50 rounded-2xl border-dashed">
+                        <i data-lucide="folder-open" class="w-12 h-12 text-slate-500 mx-auto mb-4"></i>
+                        <p class="text-slate-400 font-medium">Belum ada dokumen hierarki.</p>
+                    </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            grid.innerHTML = notesList.map(note => {
+                const dateObj = note.createdAt?.toDate ? note.createdAt.toDate() : new Date();
+                const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                
+                return `
+                <div class="bg-slate-800/40 border border-slate-700/50 rounded-xl p-6 shadow-sm hover:shadow-[0_0_20px_rgba(79,70,229,0.1)] hover:border-indigo-500/50 hover:bg-slate-800 transition-all group flex flex-col justify-between cursor-pointer" onclick="openNote('${note.id}')">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">${dateStr}</span>
+                            <button onclick="event.stopPropagation(); deleteDocument('${note.id}')" class="text-slate-600 hover:text-red-400 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <h2 class="text-xl font-bold text-white mb-2 leading-tight group-hover:text-indigo-400 transition-colors">${note.title || "Tanpa Judul"}</h2>
+                        <p class="text-sm text-slate-400 flex items-center gap-2">
+                            <i data-lucide="network" class="w-4 h-4 text-indigo-500"></i> Mind-map tersimpan
+                        </p>
+                    </div>
+                </div>
+                `;
+            }).join('');
+            
+            lucide.createIcons();
+        }
+
+        window.openEditor = () => {
+            currentNoteId = null;
+            document.getElementById('titleInput').value = "";
+            currentTree = [
+                { id: 'node_' + Date.now(), text: "", images: [], expanded: true, children: [] }
+            ];
+            isEditMode = true; 
+            updateEditModeUI();
+            document.getElementById('editorModal').classList.remove('hidden');
+        };
+
+        window.openNote = (id) => {
+            const note = notesList.find(n => n.id === id);
+            if(note) {
+                currentNoteId = note.id;
+                document.getElementById('titleInput').value = note.title || "";
+                
+                let rawTree = note.treeData ? JSON.parse(JSON.stringify(note.treeData)) : [];
+                currentTree = normalizeTreeData(rawTree);
+                
+                isEditMode = false; 
+                updateEditModeUI();
+                document.getElementById('editorModal').classList.remove('hidden');
+            }
+        };
+
+        window.closeEditor = () => {
+            document.getElementById('editorModal').classList.add('hidden');
+        };
+
+        window.saveNote = async () => {
+            const title = document.getElementById('titleInput').value;
+            if (!title) return alert("Beri judul untuk catatan ini agar mudah dicari nanti.");
+
+            const dataToSave = {
+                title: title,
+                treeData: currentTree,
+                updatedAt: new Date()
+            };
+
+            try {
+                if (currentNoteId) {
+                    await updateDoc(doc(db, "nestedIdeas", currentNoteId), dataToSave);
+                } else {
+                    dataToSave.createdAt = new Date();
+                    const newDoc = await addDoc(collection(db, "nestedIdeas"), dataToSave);
+                    currentNoteId = newDoc.id; // Update ID agar save berikutnya jadi update
+                }
+                
+                // Tampilkan notifikasi, tanpa menutup editor
+                showToast();
+            } catch (error) {
+                console.error("Save Error:", error);
+                alert("Gagal menyimpan, cek koneksi internet Anda.");
+            }
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeLightbox();
+        });
+
+    </script>
+</body>
+</html>
