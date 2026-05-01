@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitra Database System v5.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .glass { background: #ffffff; border: 1px solid rgba(226, 232, 240, 1); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+        .modal-enter { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        
+        .wa-invalid { color: #ef4444 !important; text-decoration: line-through; opacity: 0.7; }
+        
+        .no-select { user-select: none; cursor: default; }
+        .selectable { user-select: text; cursor: text; }
+        ::selection { background: rgba(79, 70, 229, 0.2); color: #0f172a; }
+        input[type="checkbox"] { accent-color: #4f46e5; cursor: pointer; }
+        
+        /* Tab Styles */
+        .tab-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; background: #f1f5f9; }
+        .tab-inactive { color: #64748b; border-bottom: 2px solid transparent; }
+        
+        /* Hover Actions */
+        .cell-container .hover-actions { visibility: hidden; opacity: 0; transition: all 0.2s ease-in-out; z-index: 50; }
+        .cell-container:hover .hover-actions { visibility: visible; opacity: 1; }
+    </style>
+</head>
+<body class="bg-white text-slate-800 min-h-screen p-4 md:p-8">
+
+    <!-- FLOATING ACTION BAR -->
+    <div id="selectionActionBar" class="fixed bottom-6 right-6 bg-white text-slate-800 p-2 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-slate-200 hidden z-50 flex flex-col gap-2 min-w-[200px] transition-all transform translate-y-2">
+        <div class="flex items-center justify-between px-2 pb-2 border-b border-slate-100">
+            <span class="text-xs font-bold text-slate-500">TERPILIH: <span id="selCountVal" class="text-indigo-600 text-lg ml-1">0</span></span>
+            <button onclick="clearSelection()" class="text-[10px] text-slate-400 hover:text-slate-600">Batal</button>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="bulkDelete()" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2 px-3 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 shadow-sm">🗑 HAPUS</button>
+            <button onclick="bulkCopy()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 shadow-sm">📋 COPY SEMUA</button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="max-w-[95%] mx-auto mb-4 flex justify-between items-center border-b border-slate-200 pb-3">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800 tracking-tighter">
+                >> MITRA_DB_SYS <span class="text-[10px] align-middle text-indigo-600 border border-indigo-200 bg-indigo-50 px-1 rounded ml-2">V5.2_MATRIX</span>
+            </h1>
+            <p class="text-[10px] text-slate-500 mb-1">Mass Data Injection & Verification Protocol</p>
+        </div>
+        <div class="text-right flex items-center gap-4">
+            <button onclick="openProgressModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-2">
+                📊 VIEW PROGRESS
+            </button>
+            <div class="hidden md:block text-right">
+                <div id="clock" class="text-lg font-bold text-slate-700">00:00:00</div>
+                <div class="text-[10px] text-emerald-600 font-bold">SYSTEM READY</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layout Utama -->
+    <div class="max-w-[95%] mx-auto flex flex-col gap-6 pb-10">
+        
+        <!-- BAGIAN 1: INPUT & SIDE PANEL -->
+        <div class="w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- FORM INPUT -->
+            <div class="lg:col-span-2 glass p-5 rounded-xl relative overflow-hidden group">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <span class="w-1.5 h-4 bg-indigo-500 rounded-full"></span> 
+                        BULK ENTRY (INPUT)
+                    </h2>
+                    <button id="clearBtn" class="text-[10px] bg-rose-500 hover:bg-rose-600 text-white font-bold px-2 py-1 rounded transition-colors shadow-sm">Clear Forms</button>
+                </div>
+
+                <form id="mitraForm" class="space-y-4">
+                    <div class="bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        <input type="text" id="generalLoc" required placeholder="Lokasi Wilayah (Kec/Kab) untuk data ini..." 
+                            class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 placeholder-slate-400 transition-all shadow-sm">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-600 uppercase flex justify-between">
+                            <span>PASTE DATA DARI EXCEL (WA & NAMA)</span> <span class="text-slate-400">Lines: <span id="countRaw" class="text-indigo-600">0</span></span>
+                        </label>
+                        <textarea id="smartRawData" rows="8" placeholder="Paste data di sini (Format: Kolom 1 WA, Kolom 2 Nama)..." 
+                            class="w-full bg-white border border-slate-300 rounded-lg p-3 text-xs focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-slate-700 resize-none whitespace-pre font-mono placeholder-slate-400 shadow-sm"></textarea>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-600 uppercase flex justify-between">
+                            <span>Link Maps (Opsional)</span> <span class="text-slate-400">Lines: <span id="countMaps" class="text-indigo-600">0</span></span>
+                        </label>
+                        <textarea id="bulkMaps" rows="3" placeholder="https://maps..." class="w-full bg-white border border-slate-300 rounded-lg p-3 text-xs focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 text-slate-700 resize-none whitespace-pre font-mono shadow-sm"></textarea>
+                    </div>
+                    <button type="submit" id="btnSubmit" class="w-full group relative overflow-hidden rounded-lg bg-indigo-600 p-2.5 text-white font-bold shadow-md transition-all hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span id="btnText" class="text-xs uppercase tracking-widest">INJECT DATA 🚀</span>
+                    </button>
+                </form>
+                <div id="statusBox" class="mt-3 p-3 rounded-lg text-[10px] font-mono hidden max-h-32 overflow-y-auto border shadow-inner"></div>
+            </div>
+
+            <!-- RIGHT PANEL: TABS (NOTES, BATCH) -->
+            <div class="lg:col-span-1 glass p-5 rounded-xl flex flex-col h-full min-h-[500px]">
+                <div class="flex border-b border-slate-200 mb-4 overflow-x-auto">
+                    <button onclick="switchTab('notes')" id="tabNotes" class="flex-1 py-2 px-1 text-[10px] uppercase font-bold transition-all tab-active whitespace-nowrap">DAILY NOTES</button>
+                    <button onclick="switchTab('batch')" id="tabBatch" class="flex-1 py-2 px-1 text-[10px] uppercase font-bold transition-all tab-inactive whitespace-nowrap">BATCH HISTORY</button>
+                </div>
+                
+                <!-- Content 1: Daily Notes -->
+                <div id="panelNotes" class="flex-1 flex flex-col overflow-hidden">
+                    <form id="noteForm" class="mb-3 flex gap-2">
+                        <input type="text" id="noteInput" required placeholder="Tulis catatan..." class="flex-1 bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm">
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 rounded text-xs font-bold shadow-sm">ADD</button>
+                    </form>
+                    <div id="notesList" class="flex-grow overflow-y-auto pr-1 space-y-2"><p class="text-[10px] text-slate-400 italic text-center mt-10">Memuat catatan...</p></div>
+                </div>
+
+                <!-- Content 2: Batch List -->
+                <div id="panelBatch" class="hidden flex-1 flex flex-col overflow-hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[9px] text-slate-500 uppercase font-bold">Input History</span>
+                        <span id="batchDateLabel" class="text-[9px] text-slate-400 font-mono"></span>
+                    </div>
+                    <div class="flex-grow overflow-y-auto pr-1" id="batchListContainer"><p class="text-[10px] text-slate-400 italic text-center mt-10">Pilih filter status/pencarian untuk update batch.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BAGIAN 2: DATABASE VIEW -->
+        <div class="w-full">
+            <div class="glass p-5 rounded-xl min-h-[500px] flex flex-col">
+                <div class="flex flex-col md:flex-row justify-between items-end md:items-center mb-4 gap-4">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 tracking-wide">DATABASE MONITOR</h2>
+                        <p class="text-[10px] text-slate-500" id="viewModeText">Menampilkan data terbaru</p>
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
+                        <div class="relative group w-full md:w-64">
+                            <input type="text" id="globalSearch" placeholder="Cari No. WA / Nama..." class="w-full bg-white border border-slate-300 rounded-lg p-2 pl-8 text-xs text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 placeholder-slate-400 transition-all shadow-sm" onkeypress="if(event.key==='Enter') searchData()">
+                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+                            <button onclick="searchData()" class="absolute right-1 top-1/2 -translate-y-1/2 bg-indigo-600 hover:bg-indigo-700 text-white p-1 rounded text-[10px] px-3 transition-all font-bold shadow-sm">CARI</button>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 justify-end bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                            <span class="text-[10px] text-slate-600 uppercase font-bold ml-1">Filter Data:</span>
+                            <select id="filterStatus" onchange="applyStatusFilter()" class="bg-white border border-slate-300 rounded p-1.5 text-xs text-slate-700 focus:outline-none focus:border-indigo-400 shadow-sm font-bold cursor-pointer outline-none">
+                                <option value="new">🟢 Belum Dipakai</option>
+                                <option value="contacted">🔴 Sudah Dipakai</option>
+                            </select>
+                            <button onclick="applyStatusFilter()" class="text-[10px] bg-indigo-600 px-3 py-1.5 rounded hover:bg-indigo-700 text-white transition-colors shadow-sm font-bold">Refresh</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <table class="w-full text-left text-xs" id="dataTable">
+                        <thead class="bg-slate-100 text-slate-600 border-b border-slate-300 uppercase tracking-wider text-[10px] shadow-sm">
+                            <tr>
+                                <th class="p-3 w-8 text-center no-select"><input type="checkbox" id="checkAll" onchange="toggleSelectAll(this)" class="rounded border-slate-400 w-3.5 h-3.5"></th>
+                                <th class="p-3 font-bold w-10 text-center no-select">No.</th>
+                                <th class="p-3 font-bold text-center w-12 no-select">Sts</th>
+                                <th class="p-3 font-bold whitespace-nowrap no-select">Waktu</th>
+                                <th class="p-3 font-bold no-select">Lokasi</th>
+                                <th class="p-3 font-bold selectable border-l border-slate-200">Kontak (WA)</th>
+                                <th class="p-3 font-bold selectable border-r border-slate-200">Nama Usaha</th>
+                                <th class="p-3 font-bold text-center w-32 no-select">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-200 text-slate-800"></tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4 flex justify-between items-center text-[11px] text-slate-500 px-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                    <span id="totalDataCount" class="font-bold text-indigo-600">Menampilkan 0 Data</span>
+                    <div class="flex gap-2">
+                        <button onclick="window.loadData()" class="transition-colors bg-slate-600 hover:bg-slate-700 px-3 py-1.5 rounded text-white font-bold shadow-sm">↻ Ke Awal</button>
+                        <button id="btnLoadMore" onclick="window.loadMoreData()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded shadow-sm font-bold transition-colors hidden">Halaman Berikutnya ➔</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BAGIAN 3: ADMIN WA NUMBERS -->
+        <div class="w-full">
+            <div class="glass p-5 rounded-xl min-h-[300px] flex flex-col mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 tracking-wide">DATABASE WA PENTING (ADMIN / CS)</h2>
+                        <p class="text-[10px] text-slate-500">Inventaris kartu, nomor aktif, dan posisi device</p>
+                    </div>
+                    <button onclick="openAdminWaModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded shadow-sm font-bold transition-colors text-xs">+ TAMBAH DATA WA</button>
+                </div>
+                <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <table class="w-full text-left text-xs" id="adminWaTable">
+                        <thead class="bg-slate-100 text-slate-600 border-b border-slate-300 uppercase tracking-wider text-[10px] shadow-sm">
+                            <tr>
+                                <th class="p-3 font-bold w-10 text-center">No.</th>
+                                <th class="p-3 font-bold">Operator</th>
+                                <th class="p-3 font-bold border-l border-slate-200">No WA</th>
+                                <th class="p-3 font-bold border-l border-slate-200">Nama WA</th>
+                                <th class="p-3 font-bold border-l border-slate-200">Posisi WA</th>
+                                <th class="p-3 font-bold border-l border-slate-200">Posisi Kartu</th>
+                                <th class="p-3 font-bold border-l border-slate-200">Masa Aktif</th>
+                                <th class="p-3 font-bold border-l border-slate-200">Nomor Seri</th>
+                                <th class="p-3 font-bold border-l border-slate-200">Keterangan</th>
+                                <th class="p-3 font-bold text-center w-20 border-l border-slate-200">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminWaTableBody" class="divide-y divide-slate-200 text-slate-800">
+                            <!-- Data akan di-inject disini -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL ADMIN WA -->
+        <div id="adminWaModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+            <div class="glass p-6 rounded-2xl w-full max-w-2xl modal-enter shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">📱 FORM NOMOR WA ADMIN</h3>
+                <form id="adminWaForm" class="space-y-4">
+                    <input type="hidden" id="waAdminId">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] text-slate-500 font-bold uppercase">Operator</label>
+                            <select id="waOp" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm cursor-pointer">
+                                <option value="">- Pilih Operator -</option>
+                                <option value="AXIS">AXIS</option>
+                                <option value="BYU">BYU</option>
+                                <option value="IM3">IM3</option>
+                                <option value="3">3</option>
+                                <option value="Telkomsel">Telkomsel</option>
+                                <option value="XL">XL</option>
+                                <option value="Smartfren">Smartfren</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+                        <div><label class="text-[10px] text-slate-500 font-bold uppercase">No WA</label><input type="text" id="waNo" placeholder="Contoh: 0812-3456-7890" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm font-mono"></div>
+                        <div><label class="text-[10px] text-slate-500 font-bold uppercase">Nama WA</label><input type="text" id="waName" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm"></div>
+                        <div><label class="text-[10px] text-slate-500 font-bold uppercase">Posisi WA</label><input type="text" id="waPosWa" placeholder="Misal: HP Utama, Kloning 1..." class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm"></div>
+                        <div><label class="text-[10px] text-slate-500 font-bold uppercase">Posisi Kartu</label><input type="text" id="waPosCard" placeholder="Misal: HP Slot 2, Dompet..." class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm"></div>
+                        <div><label class="text-[10px] text-slate-500 font-bold uppercase">Masa Aktif</label><input type="text" id="waActive" placeholder="Tgl/Bln/Thn" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm"></div>
+                    </div>
+                    <div><label class="text-[10px] text-slate-500 font-bold uppercase">Nomor Seri (ICCD)</label><input type="text" id="waSerial" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm"></div>
+                    <div><label class="text-[10px] text-slate-500 font-bold uppercase">Keterangan Tambahan</label><textarea id="waDesc" rows="2" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none resize-none shadow-sm"></textarea></div>
+                    
+                    <div class="flex gap-2 pt-2">
+                        <button type="button" onclick="document.getElementById('adminWaModal').classList.add('hidden')" class="flex-1 bg-slate-500 hover:bg-slate-600 text-white py-2 rounded text-xs font-bold shadow-sm">BATAL</button>
+                        <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded text-xs font-bold shadow-sm">SIMPAN</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL RESULT REPORT -->
+        <div id="resultModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+            <div class="glass p-6 rounded-2xl w-full max-w-lg modal-enter shadow-2xl">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">📄 LAPORAN INPUT DATA</h3>
+                <div id="resultSummary" class="text-sm text-slate-600 mb-4"></div>
+                <div id="duplicateSection" class="hidden">
+                    <p class="text-xs text-rose-500 mb-1 font-bold">DAFTAR NOMOR DUPLIKAT (Copy Manual):</p>
+                    <textarea id="duplicateList" class="w-full bg-rose-50 border border-rose-200 rounded p-2 text-xs text-rose-700 h-32 focus:outline-none resize-none font-mono mb-4" readonly></textarea>
+                </div>
+                <div class="flex justify-end"><button onclick="document.getElementById('resultModal').classList.add('hidden')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-xs font-bold shadow-sm">TUTUP</button></div>
+            </div>
+        </div>
+
+    <!-- MODAL CONTRIBUTION PROGRESS -->
+    <div id="progressModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+        <div class="glass p-8 rounded-2xl w-full max-w-5xl modal-enter shadow-2xl max-h-[95vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-3"><span class="text-2xl">📊</span> CONTRIBUTION ACTIVITY</h3>
+                <button onclick="document.getElementById('progressModal').classList.add('hidden')" class="bg-rose-500 hover:bg-rose-600 text-white w-8 h-8 rounded flex items-center justify-center transition-colors">&times;</button>
+            </div>
+            
+            <!-- Stats Input -->
+            <h4 class="text-xs font-bold text-indigo-600 mb-2 uppercase">📥 DATA INPUT (Masuk)</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white border border-slate-200 shadow-sm p-4 rounded-xl text-center"><div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">7 HARI TERAKHIR</div><div class="text-3xl font-bold text-indigo-600" id="statInWeek">0</div><div class="text-[10px] text-slate-400">Data Masuk</div></div>
+                <div class="bg-white border border-slate-200 shadow-sm p-4 rounded-xl text-center"><div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">BULAN INI</div><div class="text-3xl font-bold text-indigo-600" id="statInMonth">0</div><div class="text-[10px] text-slate-400">Data Masuk</div></div>
+                <div class="bg-white border border-slate-200 shadow-sm p-4 rounded-xl text-center"><div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">TAHUN INI</div><div class="text-3xl font-bold text-indigo-600" id="statInYear">0</div><div class="text-[10px] text-slate-400">Data Masuk</div></div>
+            </div>
+
+            <!-- Stats Contacted -->
+            <h4 class="text-xs font-bold text-emerald-600 mb-2 uppercase">📤 DATA DIPAKAI (Copy)</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div class="bg-white border border-slate-200 shadow-sm p-4 rounded-xl text-center"><div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">7 HARI TERAKHIR</div><div class="text-3xl font-bold text-emerald-600" id="statOutWeek">0</div><div class="text-[10px] text-slate-400">Data Dipakai</div></div>
+                <div class="bg-white border border-slate-200 shadow-sm p-4 rounded-xl text-center"><div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">BULAN INI</div><div class="text-3xl font-bold text-emerald-600" id="statOutMonth">0</div><div class="text-[10px] text-slate-400">Data Dipakai</div></div>
+                <div class="bg-white border border-slate-200 shadow-sm p-4 rounded-xl text-center"><div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">TAHUN INI</div><div class="text-3xl font-bold text-emerald-600" id="statOutYear">0</div><div class="text-[10px] text-slate-400">Data Dipakai</div></div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 p-6 rounded-xl overflow-x-auto shadow-inner">
+                <h4 class="text-xs font-bold text-slate-500 mb-4 uppercase">Keaktifan Input Data (1 Tahun Terakhir)</h4>
+                <div class="flex gap-1" id="contributionGraph"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT -->
+    <div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+        <div class="glass p-6 rounded-2xl w-full max-w-md modal-enter shadow-2xl">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">✏️ EDIT DATA MITRA</h3>
+            <form id="editForm" class="space-y-3">
+                <input type="hidden" id="editWaId">
+                <div><label class="text-[10px] text-slate-500 font-bold uppercase">Nama Usaha</label><input type="text" id="editNama" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm"></div>
+                <div><label class="text-[10px] text-slate-500 font-bold uppercase">Lokasi Wilayah</label><input type="text" id="editLokasi" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none shadow-sm"></div>
+                <div><label class="text-[10px] text-slate-500 font-bold uppercase">Link Maps</label><textarea id="editMaps" rows="3" class="w-full bg-white border border-slate-300 rounded p-2 text-xs text-slate-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none resize-none shadow-sm"></textarea></div>
+                <div class="flex gap-2 pt-2"><button type="button" id="closeModal" class="flex-1 bg-slate-500 hover:bg-slate-600 text-white py-2 rounded text-xs font-bold">BATAL</button><button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded text-xs font-bold shadow-sm">SIMPAN</button></div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, writeBatch, query, orderBy, limit, startAfter, where } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAGCiDwE1ccJUE1-jI8P1OvUtcuuTpqZHE",
+            authDomain: "data-mitra-42dee.firebaseapp.com",
+            projectId: "data-mitra-42dee",
+            storageBucket: "data-mitra-42dee.firebasestorage.app",
+            messagingSenderId: "411327733395",
+            appId: "1:411327733395:web:5f6cc5ef2d07bf15957766"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- GLOBAL STATE ---
+        let renderedItems = []; 
+        let selectedIds = new Set();
+        let lastCheckedIndex = null;
+        let lastVisibleDoc = null; // State untuk Pagination
+        let isSearching = false;
+
+        // --- UTILITIES ---
+        function sanitizePhoneNumber(phone) { 
+            if(!phone) return ""; 
+            return String(phone).replace(/\D/g, ''); 
+        }
+        function getTodayDate() { return new Date().toISOString().split('T')[0]; }
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('id-ID'); }, 1000);
+
+        // --- TAB SWITCHING ---
+        window.switchTab = (tabName) => {
+            const panelBatch = document.getElementById('panelBatch');
+            const panelNotes = document.getElementById('panelNotes');
+            const tabBatch = document.getElementById('tabBatch');
+            const tabNotes = document.getElementById('tabNotes');
+
+            [tabBatch, tabNotes].forEach(t => t.className = "flex-1 py-2 px-1 text-[10px] uppercase font-bold transition-all tab-inactive whitespace-nowrap");
+            [panelBatch, panelNotes].forEach(p => p.classList.add('hidden'));
+
+            if(tabName === 'batch') {
+                panelBatch.classList.remove('hidden');
+                tabBatch.className = "flex-1 py-2 px-1 text-[10px] uppercase font-bold transition-all tab-active whitespace-nowrap";
+            } else if(tabName === 'notes') {
+                panelNotes.classList.remove('hidden');
+                tabNotes.className = "flex-1 py-2 px-1 text-[10px] uppercase font-bold transition-all tab-active whitespace-nowrap";
+                loadNotes();
+            }
+        };
+
+        // --- NOTES LOGIC ---
+        document.getElementById('noteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('noteInput');
+            const text = input.value.trim();
+            if(!text) return;
+            try { 
+                const newNoteRef = doc(collection(db, 'notes'));
+                await setDoc(newNoteRef, { text: text, timestamp: Date.now() });
+                input.value = ''; 
+                loadNotes(); 
+            } catch(e) { alert(e.message); }
+        });
+
+        window.deleteNote = async (key) => { 
+            if(confirm('Hapus catatan?')) { 
+                try { await deleteDoc(doc(db, 'notes', key)); loadNotes(); } catch(e) {} 
+            } 
+        };
+
+        async function loadNotes() {
+            const list = document.getElementById('notesList');
+            list.innerHTML = `<p class="text-[10px] text-slate-400 italic text-center">Loading...</p>`;
+            try {
+                const q = query(collection(db, 'notes'), orderBy('timestamp', 'desc'), limit(20));
+                const snapshot = await getDocs(q);
+                list.innerHTML = '';
+                if(!snapshot.empty) {
+                    snapshot.forEach(docSnap => {
+                        const n = docSnap.data();
+                        const key = docSnap.id;
+                        const d = new Date(n.timestamp);
+                        list.insertAdjacentHTML('beforeend', `<div class="bg-slate-50 border border-slate-200 p-2 rounded group relative shadow-sm"><div class="flex justify-between"><span class="text-[9px] text-slate-500 font-mono">${d.toLocaleDateString('id-ID')}</span><button onclick="deleteNote('${key}')" class="bg-rose-500 text-white hover:bg-rose-600 hidden group-hover:block text-[9px] px-1.5 rounded shadow-sm">✕</button></div><p class="text-xs text-slate-700 whitespace-pre-wrap">${n.text}</p></div>`);
+                    });
+                } else { list.innerHTML = `<p class="text-[10px] text-slate-400 italic text-center">Belum ada catatan.</p>`; }
+            } catch(e) { console.error(e); }
+        }
+
+        // --- PROGRESS & CONTRIBUTION GRAPH ---
+        window.openProgressModal = async () => {
+            document.getElementById('progressModal').classList.remove('hidden');
+            
+            // Set loading states
+            ['statInWeek', 'statInMonth', 'statInYear', 'statOutWeek', 'statOutMonth', 'statOutYear'].forEach(id => {
+                document.getElementById(id).innerText = '...';
+            });
+
+            try {
+                const today = new Date();
+                let inWeek = 0, inMonth = 0, inYear = 0;
+                let outWeek = 0, outMonth = 0, outYear = 0;
+                const contributions = {};
+
+                // Fetch up to 2000 latest input data
+                const qIn = query(collection(db, 'mitra'), orderBy('timestamp', 'desc'), limit(2000));
+                const snapIn = await getDocs(qIn);
+                
+                snapIn.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.timestamp) {
+                        const inDate = new Date(data.timestamp);
+                        const inDateStr = inDate.toISOString().split('T')[0];
+                        contributions[inDateStr] = (contributions[inDateStr] || 0) + 1; // Graph only counts input
+                        
+                        const diffTime = Math.abs(today - inDate);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                        if (diffDays <= 7) inWeek++;
+                        if (inDate.getMonth() === today.getMonth() && inDate.getFullYear() === today.getFullYear()) inMonth++;
+                        if (inDate.getFullYear() === today.getFullYear()) inYear++;
+                    }
+                });
+
+                // Fetch up to 2000 latest contacted data
+                const qOut = query(collection(db, 'mitra'), where('status', '==', 'contacted'), orderBy('contacted_at', 'desc'), limit(2000));
+                const snapOut = await getDocs(qOut);
+                
+                // Angka fallback yang digunakan saat sinkronisasi sebelumnya
+                const fallbackTime = new Date('2025-04-11T08:00:00').getTime();
+
+                snapOut.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.contacted_at) {
+                        let outDate = new Date(data.contacted_at);
+                        
+                        // FIX: Jika ini adalah data hasil sinkronisasi fallback, anggap di-copy hari ini
+                        // agar tetap muncul di statistik "Tahun Ini" dsb meski tahun di sistem saat ini bukan 2025.
+                        if (data.contacted_at === fallbackTime) {
+                            outDate = new Date(today);
+                        }
+
+                        const diffTimeOut = Math.abs(today - outDate);
+                        const diffDaysOut = Math.ceil(diffTimeOut / (1000 * 60 * 60 * 24));
+                        if (diffDaysOut <= 7) outWeek++;
+                        if (outDate.getMonth() === today.getMonth() && outDate.getFullYear() === today.getFullYear()) outMonth++;
+                        if (outDate.getFullYear() === today.getFullYear()) outYear++;
+                    }
+                });
+
+                document.getElementById('statInWeek').innerText = inWeek;
+                document.getElementById('statInMonth').innerText = inMonth;
+                document.getElementById('statInYear').innerText = inYear;
+                
+                document.getElementById('statOutWeek').innerText = outWeek;
+                document.getElementById('statOutMonth').innerText = outMonth;
+                document.getElementById('statOutYear').innerText = outYear;
+
+                renderContributionGraph(contributions);
+            } catch(e) { 
+                console.error(e); 
+                alert("Gagal memuat statistik: " + e.message);
+            }
+        };
+
+        function renderContributionGraph(dataMap) {
+            const graph = document.getElementById('contributionGraph');
+            graph.innerHTML = '';
+            const today = new Date();
+            const startDate = new Date();
+            startDate.setDate(today.getDate() - 365);
+            for (let w = 0; w < 53; w++) {
+                const col = document.createElement('div');
+                col.className = 'flex flex-col gap-1';
+                for (let d = 0; d < 7; d++) {
+                    const cellDate = new Date(startDate);
+                    cellDate.setDate(startDate.getDate() + (w * 7) + d);
+                    const dateStr = cellDate.toISOString().split('T')[0];
+                    const count = dataMap[dateStr] || 0;
+                    let colorClass = 'bg-slate-100 border-slate-200'; 
+                    if (count > 0) colorClass = 'bg-indigo-100 border-indigo-200';
+                    if (count > 5) colorClass = 'bg-indigo-300 border-indigo-400';
+                    if (count > 15) colorClass = 'bg-indigo-500 border-indigo-600';
+                    if (count > 30) colorClass = 'bg-indigo-700 shadow-sm border-indigo-800';
+                    const cell = document.createElement('div');
+                    cell.className = `w-3 h-3 rounded-sm border ${colorClass} relative contrib-cell transition-all hover:scale-125 hover:z-20`;
+                    cell.setAttribute('data-title', `${dateStr}: ${count} data`);
+                    col.appendChild(cell);
+                }
+                graph.appendChild(col);
+            }
+        }
+
+        window.applyStatusFilter = () => { 
+            isSearching = false; 
+            document.getElementById('globalSearch').value = ''; 
+            loadData(false); 
+        };
+
+        document.getElementById('smartRawData').addEventListener('input', function() { document.getElementById('countRaw').innerText = this.value.split('\n').filter(l=>l.trim()!=='').length; });
+        document.getElementById('bulkMaps').addEventListener('input', function() { document.getElementById('countMaps').innerText = this.value.split('\n').filter(l=>l.trim()!=='').length; });
+        document.getElementById('clearBtn').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('mitraForm').reset(); });
+
+        // === COPY INTERCEPTOR ===
+        document.addEventListener('copy', function(e) {
+            const selection = window.getSelection();
+            if (selection.rangeCount === 0) return;
+            const rows = document.querySelectorAll('#tableBody tr');
+            let clipboardText = ""; let rowsCopied = 0;
+            rows.forEach(row => {
+                if (selection.containsNode(row, true)) {
+                    const nameCell = row.querySelector('.col-name');
+                    const waCell = row.querySelector('.col-wa');
+                    let lineParts = [];
+                    if (waCell && selection.containsNode(waCell, true)) lineParts.push(waCell.innerText.trim().replace(/[\t\n\r]+/g, ''));
+                    if (nameCell && selection.containsNode(nameCell, true)) lineParts.push(nameCell.innerText.trim().replace(/[\t\n\r]+/g, ' '));
+                    if (lineParts.length > 0) { 
+                        if(lineParts.length === 2 && selection.containsNode(waCell, true) && selection.containsNode(nameCell, true)) clipboardText += `${lineParts[0]}\t${lineParts[1]}\n`; 
+                        else clipboardText += lineParts.join('\t') + '\n'; 
+                        rowsCopied++; 
+                    }
+                }
+            });
+            if (rowsCopied > 0) { 
+                e.preventDefault(); e.clipboardData.setData('text/plain', clipboardText); 
+                const btn = document.getElementById('totalDataCount'); const oldText = btn.innerText;
+                btn.innerText = `✅ Tersalin ${rowsCopied} Baris!`; setTimeout(() => btn.innerText = oldText, 2500);
+            }
+        });
+
+        // --- SELECTION & STATUS ---
+        window.toggleSelect = (id, index, event) => {
+            const checkbox = document.getElementById(`cb-${id}`);
+            if(event.shiftKey && lastCheckedIndex !== null) {
+                const start = Math.min(lastCheckedIndex, index), end = Math.max(lastCheckedIndex, index);
+                const targetState = document.getElementById(`cb-${renderedItems[lastCheckedIndex].id}`).checked;
+                for(let i=start; i<=end; i++) {
+                    const item = renderedItems[i];
+                    if(item) {
+                        const cb = document.getElementById(`cb-${item.id}`);
+                        if(cb) { cb.checked = targetState; targetState ? selectedIds.add(item.id) : selectedIds.delete(item.id); updateRowVisual(item.id, targetState); }
+                    }
+                }
+            } else { checkbox.checked ? selectedIds.add(id) : selectedIds.delete(id); updateRowVisual(id, checkbox.checked); lastCheckedIndex = index; }
+            updateActionBar();
+        };
+
+        window.toggleSelectAll = (master) => {
+            renderedItems.forEach(item => {
+                const cb = document.getElementById(`cb-${item.id}`);
+                if(cb) { cb.checked = master.checked; master.checked ? selectedIds.add(item.id) : selectedIds.delete(item.id); updateRowVisual(item.id, master.checked); }
+            });
+            updateActionBar();
+        };
+
+        window.clearSelection = () => { document.getElementById('checkAll').checked = false; toggleSelectAll(document.getElementById('checkAll')); };
+        function updateRowVisual(id, sel) { const row = document.getElementById(`row-${id}`); if(row) sel ? row.classList.add('row-selected') : row.classList.remove('row-selected'); }
+        function updateActionBar() {
+            const bar = document.getElementById('selectionActionBar');
+            document.getElementById('selCountVal').innerText = selectedIds.size;
+            selectedIds.size > 0 ? (bar.classList.remove('hidden'), bar.classList.remove('translate-y-2')) : (bar.classList.add('translate-y-2'), setTimeout(()=>bar.classList.add('hidden'),200));
+        }
+
+        // --- BATCH OPERATIONS (FIRESTORE) ---
+        window.bulkDelete = async () => { 
+            if(confirm(`Hapus ${selectedIds.size} data?`)) { 
+                const batch = writeBatch(db);
+                selectedIds.forEach(id => { batch.delete(doc(db, 'mitra', id)); });
+                await batch.commit();
+                selectedIds.clear(); loadData(); 
+            } 
+        };
+        
+        window.bulkCopy = async () => { 
+            // 1. Ambil data yang ditandai dari renderedItems
+            const itemsToProcess = renderedItems.filter(item => selectedIds.has(item.id));
+            if (itemsToProcess.length === 0) return;
+
+            // 2. Format & Copy ke Clipboard sama seperti fitur copy 10 baris
+            const textToCopy = itemsToProcess.map(item => `${item.wa_display}\t${item.nama_usaha}`).join('\n');
+            await navigator.clipboard.writeText(textToCopy);
+
+            // 3. Ubah status menjadi contacted (sudah dipakai) via Batch
+            const batch = writeBatch(db);
+            const now = Date.now();
+            selectedIds.forEach(id => { batch.update(doc(db, 'mitra', id), { status: 'contacted', contacted_at: now }); });
+            
+            try { 
+                await batch.commit(); 
+                selectedIds.clear(); 
+                loadData(); 
+                alert(`✅ Berhasil copy & tandai ${itemsToProcess.length} data terpilih!`); 
+            } catch(e) { 
+                alert('Gagal update: ' + e.message); 
+            }
+        };
+
+        window.deleteItem = async (id) => { if(confirm('Hapus?')) { await deleteDoc(doc(db, 'mitra', id)); loadData(); } };
+        
+        window.toggleStatus = async (id, s) => { 
+            const newStatus = s === 'contacted' ? 'new' : 'contacted';
+            const updateData = { status: newStatus };
+            if (newStatus === 'contacted') updateData.contacted_at = Date.now();
+            await updateDoc(doc(db, 'mitra', id), updateData); 
+            loadData(); 
+        };
+        
+        window.toggleInvalid = async (id, currentVal) => { try { await updateDoc(doc(db, 'mitra', id), { is_invalid: !currentVal }); loadData(); } catch(e) { alert('Gagal update invalid: ' + e.message); } };
+
+        window.copyBatch = async (startIndex, count, check) => {
+            const itemsToProcess = renderedItems.slice(startIndex, startIndex + count);
+            if (itemsToProcess.length === 0) return;
+            const textToCopy = itemsToProcess.map(item => `${item.wa_display}\t${item.nama_usaha}`).join('\n');
+            await navigator.clipboard.writeText(textToCopy);
+            if (check) {
+                const batch = writeBatch(db);
+                const now = Date.now();
+                itemsToProcess.forEach(item => { batch.update(doc(db, 'mitra', item.id), {status: 'contacted', contacted_at: now}); });
+                try { await batch.commit(); loadData(); alert(`✅ Berhasil copy & tandai ${itemsToProcess.length} data!`); } catch(e) { alert('Gagal update: ' + e.message); }
+            } else {
+                const btn = document.getElementById('totalDataCount'); const oldText = btn.innerText;
+                btn.innerText = `📋 Tersalin ${itemsToProcess.length} (WA & Nama)!`; setTimeout(() => btn.innerText = oldText, 2000);
+            }
+        };
+        
+        window.openEditModal = async (id) => {
+            try {
+                const docSnap = await getDoc(doc(db, 'mitra', id));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById('editWaId').value = id;
+                    document.getElementById('editNama').value = data.nama_usaha || '';
+                    document.getElementById('editLokasi').value = data.lokasi_wilayah || '';
+                    document.getElementById('editMaps').value = data.maps || '';
+                    document.getElementById('editModal').classList.remove('hidden');
+                } else {
+                    alert('Data tidak ditemukan di database.');
+                }
+            } catch (e) { alert('Gagal ambil data: ' + e.message); }
+        };
+
+        // --- FIXED: SAVE EDIT & TUTUP MODAL TANPA REFRESH HALAMAN ---
+        document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('editModal').classList.add('hidden');
+        });
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Mencegah browser melakukan refresh halaman
+            
+            const id = document.getElementById('editWaId').value;
+            const nama = document.getElementById('editNama').value;
+            const lokasi = document.getElementById('editLokasi').value;
+            const maps = document.getElementById('editMaps').value;
+            
+            const btnSave = e.target.querySelector('button[type="submit"]');
+            const originalText = btnSave.innerText;
+            btnSave.innerText = 'Menyimpan...';
+            btnSave.disabled = true;
+
+            try {
+                // Update ke database
+                await updateDoc(doc(db, 'mitra', id), {
+                    nama_usaha: nama,
+                    nama_usaha_lower: nama.toLowerCase(),
+                    lokasi_wilayah: lokasi,
+                    maps: maps
+                });
+
+                // Update UI tabel secara langsung di baris tersebut saja (tanpa loadData)
+                const itemIndex = renderedItems.findIndex(x => x.id === id);
+                if(itemIndex > -1) {
+                    renderedItems[itemIndex].nama_usaha = nama;
+                    renderedItems[itemIndex].lokasi_wilayah = lokasi;
+                    renderedItems[itemIndex].maps = maps;
+                    
+                    const oldRow = document.getElementById(`row-${id}`);
+                    if(oldRow) {
+                        const countCell = oldRow.querySelector('td:nth-child(2)');
+                        const count = countCell ? parseInt(countCell.innerText) : (itemIndex + 1);
+                        // Ganti baris lama dengan baris baru yang sudah terupdate
+                        oldRow.outerHTML = generateRowHtml(renderedItems[itemIndex], count, itemIndex);
+                    }
+                }
+                
+                document.getElementById('editModal').classList.add('hidden');
+            } catch (err) {
+                alert('Gagal menyimpan: ' + err.message);
+            } finally {
+                btnSave.innerText = originalText;
+                btnSave.disabled = false;
+            }
+        });
+
+        window.showResultModal = (success, skipped, duplicates) => {
+            document.getElementById('resultSummary').innerHTML = `
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="bg-emerald-50 border border-emerald-200 p-3 rounded text-center shadow-sm">
+                        <div class="text-2xl font-bold text-emerald-600">${success}</div><div class="text-xs text-emerald-600 font-bold">SUKSES MASUK</div>
+                    </div>
+                    <div class="bg-rose-50 border border-rose-200 p-3 rounded text-center shadow-sm">
+                        <div class="text-2xl font-bold text-rose-500">${skipped}</div><div class="text-xs text-rose-600 font-bold">DUPLIKAT / GAGAL</div>
+                    </div>
+                </div>`;
+            
+            const dupArea = document.getElementById('duplicateSection');
+            const dupList = document.getElementById('duplicateList');
+            if (duplicates.length > 0) {
+                dupArea.classList.remove('hidden');
+                dupList.value = duplicates.join('\n');
+            } else {
+                dupArea.classList.add('hidden');
+            }
+            document.getElementById('resultModal').classList.remove('hidden');
+        };
+
+        // --- SUBMIT LOGIC (BATCH UPLOAD UNTUK FIRESTORE) ---
+        document.getElementById('mitraForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmit'); btn.disabled=true;
+            const rawLines = document.getElementById('smartRawData').value.split('\n').filter(l=>l.trim());
+            const mapsLines = document.getElementById('bulkMaps').value.split('\n').filter(l=>l.trim());
+            const loc = document.getElementById('generalLoc').value;
+            const batchId = Date.now(); const today = getTodayDate();
+            
+            if(mapsLines.length && mapsLines.length!==rawLines.length) { alert('Jumlah baris maps beda!'); btn.disabled=false; return; }
+
+            let successCount = 0, skipCount = 0, duplicates = [];
+
+            // Bagi input ke chunk (maksimal 400 dokumen per batch agar tidak kena limit)
+            const chunkSize = 400;
+            for (let chunkIdx = 0; chunkIdx < rawLines.length; chunkIdx += chunkSize) {
+                const chunkLines = rawLines.slice(chunkIdx, chunkIdx + chunkSize);
+                const chunkMaps = mapsLines.slice(chunkIdx, chunkIdx + chunkSize);
+                
+                const batch = writeBatch(db);
+                const checkPromises = [];
+                const validItems = [];
+
+                for(let i=0; i<chunkLines.length; i++) {
+                    let parts = chunkLines[i].split('\t'); if(parts.length<2) parts=chunkLines[i].split(',');
+                    const rawWa = parts[0]?.trim() || "", nama = parts[1]?.trim() || "Tanpa Nama", maps = chunkMaps[i]?.trim() || "";
+                    const waId = sanitizePhoneNumber(rawWa);
+                    if (!waId) { skipCount++; continue; }
+
+                    const docRef = doc(db, 'mitra', waId);
+                    checkPromises.push(getDoc(docRef).then(snap => {
+                        if (snap.exists()) {
+                            duplicates.push(`${waId} (${nama})`);
+                        } else {
+                            validItems.push({
+                                ref: docRef,
+                                data: {
+                                    nama_usaha: nama, 
+                                    nama_usaha_lower: nama.toLowerCase(), // Penting untuk fitur search Firestore
+                                    wa_display: rawWa, maps: maps,
+                                    lokasi_wilayah: loc, tanggal_input: today, 
+                                    timestamp: Date.now() + i, // Supaya urutannya konsisten
+                                    batch_id: batchId, status: 'new'
+                                }
+                            });
+                        }
+                    }));
+                }
+
+                await Promise.all(checkPromises); // Tunggu pengecekan duplikat selesai
+                
+                validItems.forEach(item => {
+                    batch.set(item.ref, item.data);
+                    successCount++;
+                });
+
+                if (validItems.length > 0) {
+                    await batch.commit(); // Eksekusi penulisan masal ke Firestore
+                }
+                skipCount += (chunkLines.length - validItems.length);
+            }
+
+            btn.disabled=false; document.getElementById('mitraForm').reset(); document.getElementById('countRaw').innerText = '0';
+            showResultModal(successCount, skipCount, duplicates);
+            isSearching = false;
+            loadData();
+        });
+
+        // --- FIXED: SERVER-SIDE SEARCH & BATCH DELETE ---
+        window.searchData = async () => {
+            const input = document.getElementById('globalSearch');
+            const term = input.value.trim().toLowerCase(); 
+            if(!term) { isSearching = false; applyStatusFilter(); return; }
+
+            isSearching = true;
+            const tableBody = document.getElementById('tableBody');
+            document.getElementById('viewModeText').innerText = `Mencari: ${term}...`;
+            tableBody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-indigo-600 font-bold animate-pulse">Menghubungi Server Firestore...</td></tr>`;
+            document.getElementById('btnLoadMore').classList.add('hidden'); // Sembunyikan tombol next saat search
+
+            try {
+                let results = [];
+                const cleanNumber = term.replace(/\D/g, '');
+                
+                // 1. Jika yg dicari mirip nomor HP (lebih dari 5 angka), cari persis WA (Instan)
+                if (cleanNumber.length > 5) {
+                    const docSnap = await getDoc(doc(db, 'mitra', cleanNumber));
+                    if (docSnap.exists()) results.push({id: docSnap.id, ...docSnap.data()});
+                } 
+                
+                // 2. Jika tidak ketemu pakai ID, asumsikan itu teks, cari pakai awalan nama
+                if (results.length === 0) {
+                    const q = query(
+                        collection(db, 'mitra'), 
+                        where('nama_usaha_lower', '>=', term),
+                        where('nama_usaha_lower', '<=', term + '\uf8ff'),
+                        limit(50)
+                    );
+                    const snapshot = await getDocs(q);
+                    snapshot.forEach(docSnap => results.push({id: docSnap.id, ...docSnap.data()}));
+                }
+
+                renderedItems = []; selectedIds.clear(); updateActionBar();
+                document.getElementById('batchListContainer').innerHTML = '<p class="text-[10px] text-slate-500 italic text-center mt-4">Mode Pencarian aktif.</p>';
+                
+                if(results.length > 0) {
+                    tableBody.innerHTML = ''; 
+                    results.sort((a,b) => b.timestamp - a.timestamp); // Urutkan secara lokal
+                    let count = 0;
+                    results.forEach(item => {
+                        count++; 
+                        const index = renderedItems.length; 
+                        renderedItems.push(item); 
+                        tableBody.insertAdjacentHTML('beforeend', generateRowHtml(item, count, index));
+                    });
+                    document.getElementById('totalDataCount').innerText = `Ditemukan: ${results.length} Data`;
+                } else { 
+                    tableBody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-rose-500 font-bold">Tidak ditemukan. Pastikan awalan nama benar.</td></tr>`; 
+                    document.getElementById('totalDataCount').innerText = `Ditemukan: 0 Data`;
+                }
+            } catch(e) { 
+                console.error(e);
+                tableBody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-rose-600 font-bold">Error Pencarian:<br><span class="text-xs font-mono">${e.message}</span></td></tr>`;
+            }
+        };
+
+        window.deleteBatch = async (batchId, count) => {
+            if(confirm(`⚠️ PERINGATAN PENTING!\n\nAnda akan menghapus SEMUA data di sesi ini dari database secara PERMANEN.\nApakah Anda yakin ingin melanjutkan?`)) {
+                try {
+                    const q = query(collection(db, 'mitra'), where('batch_id', '==', batchId));
+                    const snapshot = await getDocs(q);
+                    const batch = writeBatch(db);
+                    snapshot.forEach((docSnap) => { batch.delete(docSnap.ref); });
+                    await batch.commit();
+                    alert('Batch berhasil dihapus.'); 
+                    loadData(); 
+                } catch (e) { alert('Error: ' + e.message); }
+            }
+        };
+
+        // --- ROW GENERATOR ---
+        function generateRowHtml(item, count, index) {
+            const isContacted = item.status === 'contacted';
+            
+            // Tentukan Waktu yang Ditampilkan (Input vs Copy)
+            let displayTime = item.timestamp;
+            if (isContacted && item.contacted_at) {
+                displayTime = item.contacted_at;
+            }
+            
+            const dateObj = new Date(displayTime);
+            const dateStr = dateObj.toLocaleDateString('id-ID', {day:'numeric', month:'short'});
+            const timeStr = dateObj.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+            
+            const isInvalid = item.is_invalid === true; 
+            
+            // Zebra Striping System & Red Background for Contacted
+            let baseBgClass = count % 2 === 0 ? 'bg-slate-100' : 'bg-white';
+            let borderLeftClass = 'border-l-[3px] border-indigo-500';
+            let rowTextClass = 'text-slate-800';
+
+            if (isContacted) {
+                baseBgClass = 'bg-rose-100'; // Background merah untuk yang sudah dipakai
+                borderLeftClass = 'border-l-[3px] border-rose-500';
+                rowTextClass = 'text-rose-900';
+            }
+
+            const btnIcon = isContacted ? '✓' : '—';
+            const btnClass = isContacted 
+                ? 'bg-emerald-500 text-white shadow-sm hover:bg-emerald-600' 
+                : 'bg-slate-300 text-slate-700 hover:bg-emerald-500 hover:text-white shadow-sm';
+            
+            const itemId = item.id || sanitizePhoneNumber(item.wa_display); // Ambil ID dari Firestore
+            const waClass = isInvalid ? 'wa-invalid text-rose-500' : 'font-semibold';
+            
+            let mapUrl = item.maps ? item.maps.trim() : ''; if (mapUrl && !mapUrl.startsWith('http')) mapUrl = 'https://' + mapUrl;
+            
+            // Modern Icons
+            const iconMap = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`;
+            const iconTrash = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
+
+            const mapBtn = mapUrl ? `<a href="${mapUrl}" target="_blank" class="w-7 h-7 rounded-md bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-600 transition-colors shadow-sm" title="Buka Maps">${iconMap}</a>` : `<span class="w-7 h-7 rounded-md bg-slate-300 text-slate-500 flex items-center justify-center cursor-not-allowed shadow-sm">${iconMap}</span>`;
+
+            // Logic Nama Usaha > 30 Karakter
+            const isNameLong = item.nama_usaha && item.nama_usaha.length > 30;
+            const nameWarning = isNameLong ? `<span title="⚠️ Nama usaha ini lebih dari 30 karakter!" class="inline-flex items-center justify-center bg-rose-100 text-rose-600 border border-rose-300 rounded text-[9px] px-1 ml-1 cursor-help shrink-0 shadow-sm animate-pulse">⚠️ >30</span>` : '';
+
+            return `
+                <tr id="row-${itemId}" class="${baseBgClass} ${borderLeftClass} ${rowTextClass} border-b border-slate-200 transition-colors">
+                    <td class="p-2.5 text-center"><input type="checkbox" id="cb-${itemId}" onclick="toggleSelect('${itemId}', ${index}, event)" class="w-3.5 h-3.5 cursor-pointer rounded border-slate-300 text-indigo-600"></td>
+                    <td class="p-2.5 text-center font-mono no-select font-bold">${count}</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="toggleStatus('${itemId}','${item.status}')" class="w-6 h-6 mx-auto rounded-md flex items-center justify-center transition-all ${btnClass} font-bold text-[10px]" title="Toggle Status">${btnIcon}</button>
+                    </td>
+                    <td class="p-2.5 text-[10px] no-select whitespace-nowrap">
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-bold">${dateStr}</span>
+                            <span class="opacity-75 font-mono text-[9px]">${timeStr}</span>
+                        </div>
+                    </td>
+                    <td class="p-2.5 text-[10px] no-select max-w-[120px] truncate capitalize font-medium">${item.lokasi_wilayah||'-'}</td>
+                    
+                    <td class="p-2.5 border-l border-slate-200 px-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="selectable col-wa ${waClass} font-mono text-[11px] tracking-tight truncate">${item.wa_display}</span>
+                            <div class="flex gap-1 shrink-0">
+                                <button onclick="openEditModal('${itemId}')" class="w-6 h-6 flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] transition-colors shadow-sm" title="Edit Data">✏️</button>
+                                <button onclick="toggleInvalid('${itemId}', ${isInvalid})" class="w-6 h-6 flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white rounded text-[10px] transition-colors shadow-sm" title="Tandai WA Salah">⚠️</button>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td class="p-2.5 selectable col-name font-bold text-[11px] border-r border-slate-200 px-3">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-start break-words max-w-[280px] whitespace-normal leading-snug" title="${item.nama_usaha}">
+                                <span>${item.nama_usaha}</span>
+                                ${nameWarning}
+                            </div>
+                            <div class="flex gap-1 shrink-0">
+                                <button onclick="copyBatch(${index}, 1, true)" class="flex items-center gap-1 bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-1 rounded text-[9px] font-bold transition-colors shadow-sm" title="Copy 1 Baris & Tandai">📋 Copy</button>
+                                <button onclick="copyBatch(${index}, 10, true)" class="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1 rounded text-[9px] font-bold transition-colors shadow-sm" title="Copy 10 Baris & Tandai">✅ Copy 10 Baris</button>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td class="p-2.5 text-center">
+                        <div class="flex justify-center gap-1.5 no-select">
+                            ${mapBtn}
+                            <button onclick="deleteItem('${itemId}')" class="w-7 h-7 rounded-md bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 transition-colors shadow-sm" title="Hapus">${iconTrash}</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        window.loadMoreData = () => { loadData(true); };
+
+        // --- LOAD DATA (SERVER-SIDE PAGINATION DENGAN FILTER STATUS) ---
+        window.loadData = async function(isLoadMore = false) {
+            if (isSearching) return; // Nonaktifkan load normal kalau lagi nyari barang
+            const tableBody = document.getElementById('tableBody');
+            const viewTxt = document.getElementById('viewModeText');
+            const btnLoadMore = document.getElementById('btnLoadMore');
+            const filterStatusSelect = document.getElementById('filterStatus');
+            const filterStatus = filterStatusSelect ? filterStatusSelect.value : 'new';
+            
+            if (!isLoadMore) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-indigo-600 font-bold animate-pulse">Menghubungkan ke Firestore...</td></tr>`;
+                renderedItems = []; 
+                selectedIds.clear(); 
+                updateActionBar(); 
+                lastVisibleDoc = null;
+            }
+
+            try {
+                const PAGE_SIZE = 50; // Panggil 50 data saja setiap halaman!
+                let q;
+
+                const statusText = filterStatus === 'new' ? 'Belum Dipakai' : 'Sudah Dipakai';
+                viewTxt.innerText = `Menampilkan ${PAGE_SIZE} Data ${statusText} (Paginasi Server)`;
+
+                // Gunakan contacted_at jika difilter berdasarkan 'contacted', selain itu timestamp input
+                const sortField = filterStatus === 'contacted' ? 'contacted_at' : 'timestamp';
+
+                q = query(collection(db, 'mitra'), 
+                    where('status', '==', filterStatus),
+                    orderBy(sortField, 'desc'), 
+                    limit(PAGE_SIZE)
+                );
+                
+                if (isLoadMore && lastVisibleDoc) {
+                    q = query(collection(db, 'mitra'), 
+                        where('status', '==', filterStatus),
+                        orderBy(sortField, 'desc'), 
+                        startAfter(lastVisibleDoc), 
+                        limit(PAGE_SIZE)
+                    );
+                }
+
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    if (!isLoadMore) tableBody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-bold">Tidak ada data ${statusText}.</td></tr>`;
+                    btnLoadMore.classList.add('hidden');
+                    return;
+                }
+
+                lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1]; // Simpan pointer untuk next page
+                
+                // Jika data yang turun kurang dari 50, berarti sudah mentok
+                if (snapshot.docs.length < PAGE_SIZE) btnLoadMore.classList.add('hidden');
+                else btnLoadMore.classList.remove('hidden');
+
+                if (!isLoadMore) tableBody.innerHTML = '';
+                
+                // Render Ulang secara dinamis
+                let startIndex = renderedItems.length;
+                snapshot.forEach(docSnap => {
+                    const item = docSnap.data();
+                    item.id = docSnap.id;
+                    startIndex++;
+                    const index = renderedItems.length;
+                    renderedItems.push(item);
+                    tableBody.insertAdjacentHTML('beforeend', generateRowHtml(item, startIndex, index));
+                });
+
+                document.getElementById('totalDataCount').innerText = `Tampil di Layar: ${renderedItems.length} Data`;
+                if (!isLoadMore && !isSearching) updateBatchSidebar();
+
+            } catch(e) { 
+                console.error(e); 
+                tableBody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-rose-600"><b>Terjadi Kesalahan Server:</b><br><span class="text-xs font-mono text-rose-500 mt-2 block">${e.message}</span><br>Jika pesan di atas berisi link biru atau awalan https://, silakan <b>Copy & Buka Link tersebut di tab baru browser Anda</b> untuk membuat Index otomatis.</td></tr>`;
+            }
+        }
+
+        // Tampilkan 10 sesi terakhir (Side panel)
+        async function updateBatchSidebar() {
+            const batchList = document.getElementById('batchListContainer');
+            batchList.innerHTML = `<p class="text-[10px] text-slate-400 italic text-center mt-4">Memuat sesi dari server...</p>`;
+            try {
+                // Panggil secukupnya hanya untuk melihat history sesi
+                const q = query(collection(db, 'mitra'), orderBy('timestamp', 'desc'), limit(300));
+                const snap = await getDocs(q);
+                const batches = {};
+                snap.forEach(d => {
+                    const item = d.data();
+                    if(item.batch_id) batches[item.batch_id] = (batches[item.batch_id] || 0) + 1;
+                });
+                
+                batchList.innerHTML = '';
+                const keys = Object.keys(batches).sort((a,b) => b - a);
+                if(keys.length) {
+                    keys.forEach(bid => {
+                        const d = new Date(parseInt(bid));
+                        const dateStr = d.toLocaleDateString('id-ID', {day:'numeric', month:'short'});
+                        const timeStr = d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+                        batchList.insertAdjacentHTML('beforeend', `
+                            <div class="bg-white border border-slate-200 shadow-sm p-2 rounded mb-2 flex justify-between items-center group">
+                                <div>
+                                    <div class="text-[10px] text-slate-600 font-mono font-bold">${dateStr} | ${timeStr}</div>
+                                    <div class="text-[9px] text-slate-500 font-bold mt-1">${batches[bid]} Data Terdeteksi</div>
+                                </div>
+                                <button onclick="deleteBatch('${bid}', 0)" class="text-[9px] bg-rose-500 hover:bg-rose-600 text-white px-2 py-1 rounded transition-colors shadow-sm">HAPUS</button>
+                            </div>
+                        `);
+                    });
+                } else batchList.innerHTML = `<p class="text-[10px] text-slate-400 text-center mt-4">Belum ada Sesi Batch.</p>`;
+            } catch(e) { 
+                console.error(e); 
+                batchList.innerHTML = `<div class="p-2 bg-rose-50 border border-rose-200 rounded mt-2"><p class="text-[9px] text-rose-600 font-bold">Gagal memuat batch:</p><p class="text-[8px] text-rose-500 font-mono mt-1">${e.message}</p></div>`;
+            }
+        }
+
+        // --- BAGIAN 3: ADMIN WA LOGIC ---
+        window.openAdminWaModal = async (id = null) => {
+            const form = document.getElementById('adminWaForm');
+            form.reset();
+            document.getElementById('waAdminId').value = '';
+            
+            if (id) {
+                try {
+                    const docSnap = await getDoc(doc(db, 'admin_wa', id));
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        document.getElementById('waAdminId').value = id;
+                        document.getElementById('waOp').value = data.operator || '';
+                        
+                        // Format the WA number if it was loaded from DB
+                        let loadWa = data.no_wa || '';
+                        let cleanLoadWa = loadWa.replace(/\D/g, '');
+                        let formatLoadWa = '';
+                        for (let i = 0; i < cleanLoadWa.length; i++) {
+                            if (i > 0 && i % 4 === 0) formatLoadWa += '-';
+                            formatLoadWa += cleanLoadWa[i];
+                        }
+                        document.getElementById('waNo').value = formatLoadWa;
+                        
+                        document.getElementById('waName').value = data.nama_wa || '';
+                        document.getElementById('waPosWa').value = data.posisi_wa || '';
+                        document.getElementById('waPosCard').value = data.posisi_kartu || '';
+                        document.getElementById('waActive').value = data.masa_aktif || '';
+                        document.getElementById('waSerial').value = data.nomor_seri || '';
+                        document.getElementById('waDesc').value = data.keterangan || '';
+                    }
+                } catch(e) { alert('Gagal memuat data: ' + e.message); }
+            }
+            document.getElementById('adminWaModal').classList.remove('hidden');
+        };
+
+        // Format WA Input (Tiap 4 digit tambah strip otomatis)
+        document.getElementById('waNo').addEventListener('input', function (e) {
+            let value = this.value.replace(/\D/g, '');
+            let formattedValue = '';
+            for (let i = 0; i < value.length; i++) {
+                if (i > 0 && i % 4 === 0) formattedValue += '-';
+                formattedValue += value[i];
+            }
+            this.value = formattedValue;
+        });
+
+        document.getElementById('adminWaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btnSave = e.target.querySelector('button[type="submit"]');
+            const originalText = btnSave.innerText;
+            btnSave.innerText = 'Menyimpan...';
+            btnSave.disabled = true;
+
+            const id = document.getElementById('waAdminId').value;
+            const data = {
+                operator: document.getElementById('waOp').value.trim(),
+                no_wa: document.getElementById('waNo').value.trim(),
+                nama_wa: document.getElementById('waName').value.trim(),
+                posisi_wa: document.getElementById('waPosWa').value.trim(),
+                posisi_kartu: document.getElementById('waPosCard').value.trim(),
+                masa_aktif: document.getElementById('waActive').value.trim(),
+                nomor_seri: document.getElementById('waSerial').value.trim(),
+                keterangan: document.getElementById('waDesc').value.trim()
+            };
+
+            if (!id) data.timestamp = Date.now(); // Hanya set timestamp jika data baru
+
+            // Hapus yang kosong agar tidak nyampah di database
+            Object.keys(data).forEach(key => (data[key] === '' || data[key] === undefined) && delete data[key]);
+
+            try {
+                if (id) {
+                    await updateDoc(doc(db, 'admin_wa', id), data);
+                } else {
+                    await setDoc(doc(collection(db, 'admin_wa')), data);
+                }
+                document.getElementById('adminWaModal').classList.add('hidden');
+                loadAdminWa();
+            } catch(err) { alert('Gagal menyimpan: ' + err.message); }
+            finally { btnSave.innerText = originalText; btnSave.disabled = false; }
+        });
+
+        window.deleteAdminWa = async (id) => {
+            if(confirm('Hapus data WA Admin ini secara permanen?')) {
+                try {
+                    await deleteDoc(doc(db, 'admin_wa', id));
+                    loadAdminWa();
+                } catch(e) { alert('Gagal menghapus: ' + e.message); }
+            }
+        };
+
+        async function loadAdminWa() {
+            const tbody = document.getElementById('adminWaTableBody');
+            tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-indigo-600 font-bold animate-pulse">Memuat Data WA Admin...</td></tr>`;
+            try {
+                // Urutkan berdasarkan waktu input pertama kali (asc/desc bebas)
+                const q = query(collection(db, 'admin_wa'), orderBy('timestamp', 'asc'));
+                const snapshot = await getDocs(q);
+                tbody.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-500 font-bold text-xs bg-slate-50">Belum ada inventaris data Nomor WA Admin.<br><span class="font-normal">Klik "+ Tambah Data WA" untuk mulai mendata.</span></td></tr>`;
+                    return;
+                }
+
+                const iconTrash = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
+
+                let count = 0;
+                snapshot.forEach(docSnap => {
+                    count++;
+                    const d = docSnap.data();
+                    const id = docSnap.id;
+                    const baseBgClass = count % 2 === 0 ? 'bg-slate-50/70' : 'bg-white';
+                    
+                    // Format Operator Badge dengan warna solid
+                    const opVal = (d.operator || '').toUpperCase();
+                    let opClass = 'bg-slate-100 text-slate-600'; // Default abu-abu
+                    if (opVal === 'AXIS') opClass = 'bg-purple-500 text-white';
+                    else if (opVal === 'BYU') opClass = 'bg-blue-500 text-white';
+                    else if (opVal === 'IM3') opClass = 'bg-orange-500 text-white';
+                    else if (opVal === '3') opClass = 'bg-red-500 text-white';
+                    else if (d.operator) opClass = 'bg-slate-500 text-white'; 
+
+                    const opBadge = d.operator ? `<span class="px-2 py-1 rounded text-[9px] font-bold shadow-sm ${opClass} whitespace-nowrap">${d.operator}</span>` : '-';
+
+                    // Format No WA di tabel (tiap 4 digit, meskipun data lamanya tidak ada strip)
+                    let displayWa = d.no_wa || '-';
+                    if (displayWa !== '-') {
+                        let cleanWa = displayWa.replace(/\D/g, '');
+                        let formattedWa = '';
+                        for (let i = 0; i < cleanWa.length; i++) {
+                            if (i > 0 && i % 4 === 0) formattedWa += '-';
+                            formattedWa += cleanWa[i];
+                        }
+                        displayWa = formattedWa;
+                    }
+
+                    tbody.insertAdjacentHTML('beforeend', `
+                        <tr class="${baseBgClass} hover:bg-indigo-50/60 border-b border-slate-100 transition-colors text-slate-700">
+                            <td class="p-2.5 text-center font-mono no-select font-bold align-top pt-3">${count}</td>
+                            <td class="p-2.5 text-[11px] font-medium align-top pt-2.5">${opBadge}</td>
+                            <td class="p-2.5 border-l border-slate-200 px-3 font-mono font-bold text-indigo-600 align-top pt-3 whitespace-nowrap">${displayWa}</td>
+                            <td class="p-2.5 border-l border-slate-200 px-3 font-bold text-[11px] align-top pt-3">${d.nama_wa || '-'}</td>
+                            <td class="p-2.5 border-l border-slate-200 px-3 text-[10px] align-top pt-3">${d.posisi_wa || '-'}</td>
+                            <td class="p-2.5 border-l border-slate-200 px-3 text-[10px] align-top pt-3">${d.posisi_kartu || '-'}</td>
+                            <td class="p-2.5 border-l border-slate-200 px-3 text-[10px] align-top pt-3 whitespace-nowrap">${d.masa_aktif || '-'}</td>
+                            <td class="p-2.5 border-l border-slate-200 px-3 font-mono text-slate-500 text-[10px] align-top pt-3">${d.nomor_seri || '-'}</td>
+                            <td class="p-2.5 border-l border-slate-200 px-3 text-[10px] align-top pt-3 max-w-[150px] truncate" title="${d.keterangan || ''}">${d.keterangan || '-'}</td>
+                            <td class="p-2.5 border-l border-slate-200 px-3 text-center align-top pt-3">
+                                <div class="flex justify-center gap-1.5">
+                                    <button onclick="openAdminWaModal('${id}')" class="w-6 h-6 flex items-center justify-center bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] transition-colors shadow-sm" title="Edit">✏️</button>
+                                    <button onclick="deleteAdminWa('${id}')" class="w-6 h-6 rounded bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 transition-colors shadow-sm" title="Hapus">${iconTrash}</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `);
+                });
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-rose-500 font-bold">Gagal memuat data: ${e.message}</td></tr>`;
+            }
+        }
+
+        // Init
+        loadNotes();
+        loadData();
+        loadAdminWa(); // Panggil fungsi load saat aplikasi dibuka
+    </script>
+</body>
+</html>
