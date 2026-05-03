@@ -1,0 +1,198 @@
+:root {
+    --bg-color: #f0f2f5;
+    --text-main: #1c1e21;
+    --text-muted: #606770;
+    --primary-color: #1877f2;
+    --primary-hover: #166fe5;
+    --border-color: #dadde1;
+    --card-bg: #ffffff;
+    --danger-color: #fa383e;
+    --success-color: #42b72a;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    line-height: 1.6;
+    margin: 0;
+    padding: 30px 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    width: 100%;
+    max-width: 850px;
+    background: transparent;
+}
+
+h1 {
+    text-align: center;
+    color: var(--text-main);
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+
+.header-action {
+    text-align: right;
+    margin-bottom: 20px;
+}
+
+/* KOTAK LACI */
+.section-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    padding: 16px 20px;
+    margin-top: 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1.1em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: all 0.2s;
+}
+
+.section-header:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-color: #ccd0d5;
+}
+
+.section-content {
+    display: none;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    background: #fafbfc;
+    margin-top: -5px; /* Nempel ke header */
+}
+
+.section-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* KARTU PROMPT */
+.prompt-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    padding: 18px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.prompt-desc {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text-main);
+    font-size: 1.05em;
+}
+
+.prompt-text {
+    background: #f4f5f7;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 0.9em;
+    color: #4a4a4a;
+    white-space: pre-wrap;
+    border: 1px solid #e1e4e8;
+}
+
+/* TOMBOL */
+.btn-group { margin-top: 12px; display: flex; gap: 10px; }
+button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.1s;
+}
+button:active { transform: scale(0.97); }
+
+.btn-large { padding: 12px 24px; font-size: 1em; }
+.btn-primary { background: var(--primary-color); color: white; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary { background: #e4e6eb; color: #050505; }
+.btn-secondary:hover { background: #d8dadf; }
+.btn-copy { background: #e7f3ff; color: var(--primary-color); } /* Biru soft */
+.btn-copy:hover { background: #dbeaff; }
+.btn-delete { background: #ffebe8; color: var(--danger-color); } /* Merah soft */
+.btn-delete:hover { background: #ffd4d1; }
+
+/* MODAL (POP-UP) */
+.modal {
+    display: none; 
+    position: fixed; z-index: 1000; left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.5); /* Dim effect */
+    backdrop-filter: blur(3px);
+    align-items: center; justify-content: center;
+}
+.modal.active { display: flex; animation: fadeIn 0.2s; }
+
+.modal-content {
+    background-color: var(--card-bg);
+    width: 90%; max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+.modal-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.modal-header h2 { margin: 0; font-size: 1.25em; }
+
+.close-btn {
+    font-size: 24px; font-weight: bold; color: #888; cursor: pointer;
+    line-height: 1;
+}
+.close-btn:hover { color: #333; }
+
+.modal-body {
+    padding: 24px;
+    display: flex; flex-direction: column;
+}
+.modal-body label { font-weight: 600; margin-bottom: 8px; font-size: 0.95em; }
+.modal-body input, .modal-body textarea {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid #ccc; border-radius: 6px;
+    font-family: inherit; font-size: 1em;
+    box-sizing: border-box;
+}
+.modal-body input:focus, .modal-body textarea:focus {
+    outline: none; border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(24,119,242,0.2);
+}
+.modal-body textarea { resize: vertical; min-height: 100px; }
+
+.modal-footer {
+    padding: 16px 24px; background: #f8f9fa;
+    border-top: 1px solid var(--border-color);
+    display: flex; justify-content: flex-end; gap: 10px;
+}
+
+/* TOAST NOTIFICATION */
+.toast {
+    visibility: hidden; min-width: 250px;
+    background-color: var(--text-main); color: #fff;
+    text-align: center; border-radius: 8px; padding: 12px 20px;
+    position: fixed; z-index: 1001; right: 30px; bottom: 30px;
+    font-size: 0.95em; font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(20px); opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+}
+.toast.show { visibility: visible; opacity: 1; transform: translateY(0); }
+
+@keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
