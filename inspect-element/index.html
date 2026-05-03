@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Inspek Elemen Pro</title>
+    
+    <!-- Pustaka Ikon dan Drag & Drop -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+    <!-- Firebase SDK (Classic) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* =========================================================
+           1. CSS ASLI & DASAR (DIPERTAHANKAN)
+           ========================================================= */
+        :root {
+            --bg-color: #f0f2f5; --text-main: #1c1e21; --text-muted: #606770;
+            --primary-color: #1877f2; --primary-hover: #166fe5;
+            --border-color: #dadde1; --card-bg: #ffffff;
+            --danger-color: #fa383e; --success-color: #42b72a;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color); color: var(--text-main);
+            line-height: 1.6; margin: 0; padding: 30px 20px;
+            display: flex; justify-content: center;
+        }
+
+        .container { width: 100%; max-width: 850px; background: transparent; }
+        h1 { text-align: center; color: var(--text-main); margin-bottom: 30px; }
+        .header-action { text-align: right; margin-bottom: 20px; }
+
+        /* KOTAK LACI & NESTED (HIERARKI) */
+        .nested-group {
+            min-height: 20px; margin-left: 24px; border-left: 2px dashed #dadde1;
+            padding-left: 15px; margin-top: 8px; display: none;
+        }
+        #rootContainer.nested-group { margin-left: 0; border-left: none; padding-left: 0; display: block; }
+        .nested-group.active { display: block; animation: fadeIn 0.3s; }
+        .list-item { margin-bottom: 12px; }
+
+        /* Tambahan CSS Footer Folder (Quick Add) */
+        .folder-footer {
+            display: none; margin-left: 24px; border-left: 2px dashed #dadde1;
+            padding-left: 15px; padding-bottom: 10px; margin-top: -5px;
+        }
+        .folder-footer.active.has-children { display: block; animation: fadeIn 0.3s; }
+        .btn-quick-add {
+            background: transparent; border: 1px dashed #ccc; color: #888;
+            font-size: 0.85em; padding: 6px 12px; transition: 0.2s;
+        }
+        .btn-quick-add:hover { background: #f0f2f5; color: var(--primary-color); border-color: var(--primary-color); }
+
+        .item-header {
+            background-color: var(--card-bg); border: 1px solid var(--border-color);
+            padding: 12px 16px; border-radius: 8px; display: flex; 
+            justify-content: space-between; align-items: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.2s;
+        }
+        .item-header:hover { box-shadow: 0 3px 8px rgba(0,0,0,0.08); border-color: #ccd0d5; }
+        .folder-header { cursor: pointer; }
+        .copas-header { background: #fafbfc; cursor: default; align-items: flex-start;}
+
+        .item-title { display: flex; align-items: flex-start; gap: 12px; flex: 1; overflow: hidden; margin-top: 2px;}
+        .title-text { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top: 2px;}
+        
+        .copas-info { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+        
+        /* Modifikasi Preview Text agar 5 baris menyesuaikan tinggi gambar */
+        .copas-preview { 
+            font-size: 0.85em; color: var(--text-muted); margin-top: 4px; 
+            font-family: monospace; white-space: pre-wrap; 
+            display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; 
+            overflow: hidden; word-break: break-word;
+        }
+        
+        /* Thumbnail Gambar di List */
+        .copas-content-wrapper { display: flex; gap: 15px; margin-top: 6px; align-items: flex-start; }
+        .copas-thumbnail {
+            max-width: 120px; max-height: 90px; border-radius: 6px;
+            border: 1px solid #ddd; object-fit: cover;
+            cursor: zoom-in; transition: opacity 0.2s;
+        }
+        .copas-thumbnail:hover { opacity: 0.8; }
+
+        /* Variasi Copas (Desain Baru) */
+        .copas-variations { 
+            margin-top: 15px; display: flex; gap: 8px; flex-wrap: wrap; 
+            border-top: 1px dashed #eaedf2; padding-top: 12px;
+        }
+        .btn-variation {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 14px; font-size: 0.85em; border-radius: 6px;
+            font-weight: 600; cursor: pointer; transition: 0.2s;
+            border: 1px solid transparent;
+        }
+        .btn-variation i { font-size: 1.1em; opacity: 0.7; }
+        .btn-variation:hover { transform: translateY(-2px); box-shadow: 0 3px 6px rgba(0,0,0,0.08); }
+        .btn-variation:hover i { opacity: 1; }
+
+        /* Tema Warna untuk Tombol Variasi */
+        .var-default { background: #f1f3f5; color: #495057; border-color: #e9ecef; }
+        .var-color-0 { background: #e7f5ff; color: #1864ab; border-color: #d0ebff; }
+        .var-color-1 { background: #ebfbee; color: #2b8a3e; border-color: #d3f9d8; }
+        .var-color-2 { background: #fff9db; color: #e67700; border-color: #ffec99; }
+        .var-color-3 { background: #f3f0ff; color: #5f3dc4; border-color: #e5dbff; }
+        .var-color-4 { background: #ffe3e3; color: #c92a2a; border-color: #ffc9c9; }
+        .var-color-5 { background: #e3fafc; color: #0b7285; border-color: #c5f6fa; }
+
+        /* Styling Ikon & Aksi */
+        .drag-handle { color: #bbb; cursor: grab; padding: 5px; font-size: 1.1em; }
+        .drag-handle:active { cursor: grabbing; color: var(--primary-color); }
+        .fa-folder, .fa-folder-open { color: #f6c000; font-size: 1.3em; margin-top: 2px;}
+        .fa-file-lines { color: #6c757d; font-size: 1.3em; margin-top: 2px;}
+        
+        .item-actions { display: flex; gap: 8px; align-items: center;}
+        .btn-icon { cursor: pointer; font-size: 1.1em; transition: 0.2s; padding: 6px; border-radius: 4px;}
+        .btn-icon:hover { transform: scale(1.15); background: #f0f2f5; }
+        
+        /* Warna-warni Ikon Aksi */
+        .add-folder-icon { color: #20c997; } /* Teal */
+        .add-copas-icon { color: #339af0; } /* Biru Terang */
+        .var-icon { color: #845ef7; }        /* Ungu */
+        .copy-icon { color: #5c7cfa; }       /* Indigo */
+        .edit-icon { color: #fd7e14; }       /* Oranye */
+        .delete-icon { color: #fa5252; }     /* Merah */
+
+        .sortable-ghost { opacity: 0.4; background: #f8f9fa; border: 2px dashed var(--primary-color); }
+
+        /* TOMBOL DASAR */
+        button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: 0.2s; }
+        button:active { transform: scale(0.97); }
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: #e4e6eb; color: #050505; }
+        .btn-delete-img { background: #ffebe8; color: var(--danger-color); font-size: 0.8em; padding: 6px 12px;}
+
+        /* MODAL (POP-UP) */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(3px); align-items: center; justify-content: center; }
+        .modal.active { display: flex; animation: fadeIn 0.2s; }
+        .modal-content { background-color: var(--card-bg); width: 90%; max-width: 500px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; }
+        .modal-header { padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { margin: 0; font-size: 1.25em; }
+        .close-btn { font-size: 24px; font-weight: bold; color: #888; cursor: pointer; line-height: 1; }
+        .modal-body { padding: 24px; display: flex; flex-direction: column; max-height: 70vh; overflow-y: auto;}
+        .modal-body label { font-weight: 600; margin-bottom: 8px; font-size: 0.95em; }
+        .modal-body input, .modal-body textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; font-size: 1em; box-sizing: border-box; }
+        .modal-body input:focus, .modal-body textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(24,119,242,0.2); }
+        .modal-body textarea { resize: vertical; min-height: 100px; }
+        .modal-footer { padding: 16px 24px; background: #f8f9fa; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* MODAL FOCUS GAMBAR */
+        #modalImageFocus { background-color: rgba(0,0,0,0.85); }
+        .focus-image-content { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 4px 25px rgba(0,0,0,0.5); object-fit: contain; animation: zoomInFocus 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
+        .close-focus-btn { position: absolute; top: 20px; right: 30px; color: #fff; font-size: 40px; font-weight: bold; cursor: pointer; transition: 0.2s; z-index: 1002; }
+        .close-focus-btn:hover { color: #ccc; transform: scale(1.1); }
+        @keyframes zoomInFocus { from {transform: scale(0.8); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+
+        /* AREA DROPZONE GAMBAR */
+        .dropzone {
+            border: 2px dashed #ccc; border-radius: 8px; padding: 20px;
+            text-align: center; color: #888; background: #fafbfc;
+            margin-bottom: 15px; transition: all 0.2s; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .dropzone.dragover { border-color: var(--primary-color); background: #e7f3ff; color: var(--primary-color); }
+        #imagePreview { max-width: 100%; max-height: 250px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        .toast { visibility: hidden; min-width: 250px; background-color: var(--text-main); color: #fff; text-align: center; border-radius: 8px; padding: 12px 20px; position: fixed; z-index: 1001; right: 30px; bottom: 30px; font-size: 0.95em; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateY(20px); opacity: 0; transition: opacity 0.3s, transform 0.3s; }
+        .toast.show { visibility: visible; opacity: 1; transform: translateY(0); }
+        @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bank Inspek Elemen Pro Pro</h1>
+        <div class="header-action">
+            <button class="btn-primary" onclick="openFolderModal('root')">
+                <i class="fa-solid fa-folder-plus"></i> Buat Laci Utama
+            </button>
+        </div>
+        <!-- Wadah Root untuk Tree Tak Terbatas -->
+        <div id="rootContainer" class="nested-group"></div>
+    </div>
+
+    <!-- MODAL: Laci -->
+    <div id="modalFolder" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="folderModalTitle">Laci Kategori</h2>
+                <span class="close-btn" onclick="closeModal('modalFolder')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <label>Nama Laci:</label>
+                <input type="text" id="inputFolderName" placeholder="Contoh: Marketing, Code, dll..." autocomplete="off">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modalFolder')">Batal</button>
+                <button class="btn-primary" id="btnSaveFolder">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Copas (Dengan Fitur Upload Gambar) -->
+    <div id="modalCopas" class="modal" tabindex="-1">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="copasModalTitle">Copas</h2>
+                <span class="close-btn" onclick="closeModal('modalCopas')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- Area Upload Gambar -->
+                <label>Referensi Gambar (Opsional):</label>
+                <div id="imageDropzone" class="dropzone">
+                    <div id="dropzoneText">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2em; margin-bottom: 10px;"></i><br>
+                        Klik, Paste (Ctrl+V), atau Drag & Drop Gambar di sini
+                    </div>
+                    <img id="imagePreview" style="display:none;"/>
+                    <button id="btnRemoveImage" class="btn-delete-img" style="display:none; margin-top: 15px;">
+                        <i class="fa-solid fa-trash"></i> Hapus Gambar
+                    </button>
+                </div>
+                <input type="file" id="inputFile" accept="image/*" style="display:none;">
+
+                <label>Deskripsi Singkat / Judul:</label>
+                <input type="text" id="inputCopasDesc" placeholder="Contoh: Bikin artikel SEO..." autocomplete="off">
+                
+                <label style="margin-top: 15px;">Isi Copas Utuh:</label>
+                <textarea id="inputCopasText" rows="6" placeholder="Paste copas lengkap Anda di sini..."></textarea>
+                
+                <!-- Area Variasi Copas -->
+                <div style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <label style="display: flex; justify-content: space-between; align-items: center;">
+                        Variasi Copas:
+                        <button type="button" class="btn-secondary" style="padding: 4px 10px; font-size: 0.85em;" onclick="addVariationField()">
+                            <i class="fa-solid fa-plus"></i> Tambah Variasi
+                        </button>
+                    </label>
+                    <div id="variationsContainer"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modalCopas')">Batal</button>
+                <button class="btn-primary" id="btnSaveCopas">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Focus Gambar (Lightbox) -->
+    <div id="modalImageFocus" class="modal" onclick="closeModal('modalImageFocus')">
+        <span class="close-focus-btn" onclick="closeModal('modalImageFocus')">&times;</span>
+        <img id="focusImage" class="focus-image-content" src="" onclick="event.stopPropagation()">
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Notifikasi</div>
+
+    <script>
+        // =========================================================
+        // KODE FIREBASE (SESUAIKAN DENGAN KODE MILIKMU)
+        // =========================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDyx1sfyaz6eEcbd9TtlFREQSlpiNKjKts",
+            authDomain: "wa-template-90a0d.firebaseapp.com",
+            databaseURL: "https://wa-template-90a0d-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "wa-template-90a0d",
+            storageBucket: "wa-template-90a0d.firebasestorage.app",
+            messagingSenderId: "803214078238",
+            appId: "1:803214078238:web:c91f88e8ddde74b149190f"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const DOC_REF = db.collection("copas_data").doc("tree_struktur"); 
+
+        const rootContainer = document.getElementById("rootContainer");
+
+        // =========================================================
+        // STATE & MEMORY MANAGEMENT (SANGAT PENTING)
+        // =========================================================
+        let openFolders = new Set(); 
+        let targetParentId = null;   
+        let editingNodeId = null;    
+        let currentImageData = null; // Menyimpan Base64 sementara di Modal
+        
+        // Objek ini menyimpan konten berat (Gambar & Teks Panjang) di RAM
+        // agar HTML tidak nge-lag gara-gara kepanjangan string Base64
+        let nodeDataStore = {}; 
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadAndRenderTree();
+        });
+
+        // --- 1. RENDER STRUKTUR TREE ---
+        async function loadAndRenderTree() {
+            rootContainer.innerHTML = "<p style='text-align:center; color:#666;'>Memuat data laci...</p>";
+            try {
+                const docSnap = await DOC_REF.get();
+                let treeData = [];
+                if (docSnap.exists) { treeData = docSnap.data().tree || []; }
+                
+                // Reset dan isi ulang Memory Store
+                nodeDataStore = {};
+                function storeNodesRecursive(nodes) {
+                    nodes.forEach(n => {
+                        nodeDataStore[n.id] = n;
+                        if (n.children) storeNodesRecursive(n.children);
+                    });
+                }
+                storeNodesRecursive(treeData);
+
+                if (treeData.length === 0) {
+                    rootContainer.innerHTML = `
+                        <div style="text-align:center; padding: 40px; background:#fff; border-radius:8px; border:1px dashed #ccc;">
+                            <p style="color:#888; margin:0;">Belum ada laci copas. Silakan buat Laci Utama.</p>
+                        </div>`;
+                } else {
+                    rootContainer.innerHTML = treeData.map(node => generateHTML(node)).join('');
+                    initSortable(); 
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                showToast("Gagal memuat data.");
+            }
+        }
+
+        // Generate HTML yang Ramping (Tanpa memasukkan Base64 ke dalam atribut HTML)
+        function generateHTML(node) {
+            const isFolderOpen = openFolders.has(node.id);
+            const activeClass = isFolderOpen ? 'active' : '';
+
+            if (node.type === 'folder') {
+                const hasChildren = node.children && node.children.length > 0;
+                const childrenClass = hasChildren ? 'has-children' : '';
+                return `
+                <div class="list-item" data-id="${node.id}" data-type="folder">
+                    <div class="item-header folder-header" onclick="toggleFolder('${node.id}', this, event)">
+                        <div class="item-title">
+                            <i class="fa-solid fa-grip-vertical drag-handle" title="Drag"></i>
+                            <i class="fa-solid ${isFolderOpen ? 'fa-folder-open' : 'fa-folder'}"></i>
+                            <span class="title-text">${node.title}</span>
+                        </div>
+                        <div class="item-actions">
+                            <i class="fa-solid fa-folder-plus btn-icon add-folder-icon" title="Tambah Sub-Laci" onclick="openFolderModal('${node.id}', event)"></i>
+                            <i class="fa-solid fa-file-circle-plus btn-icon add-copas-icon" title="Tambah Copas" onclick="openCopasModal('${node.id}', event)"></i>
+                            <i class="fa-solid fa-pen btn-icon edit-icon" title="Edit Laci" onclick="openEditModal('${node.id}', 'folder', event)"></i>
+                            <i class="fa-solid fa-trash btn-icon delete-icon" title="Hapus" onclick="deleteNode('${node.id}', event)"></i>
+                        </div>
+                    </div>
+                    <div class="nested-group ${activeClass}">
+                        ${(node.children || []).map(child => generateHTML(child)).join('')}
+                    </div>
+                    <div class="folder-footer ${activeClass} ${childrenClass}">
+                        <button class="btn-quick-add" onclick="openCopasModal('${node.id}', event)">
+                            <i class="fa-solid fa-plus"></i> Tambah Copas Cepat
+                        </button>
+                    </div>
+                </div>`;
+            } else {
+                // Memanggil image focus modal saat gambar diklik
+                const imgHTML = node.image ? `<img src="${node.image}" class="copas-thumbnail" onclick="openImageFocus('${node.image}', event)" />` : '';
+                
+                // Mencegah rendering memori terlalu besar (potong 500 karakter saja di DOM, sisa di CSS)
+                let previewText = node.content || '';
+                if(previewText.length > 500) { previewText = previewText.substring(0, 500) + '...'; }
+
+                // Pembentukan HTML untuk tombol variasi dengan tombol Default & Icon Copy
+                let variationsHTML = `<div class="copas-variations">
+                    <button class="btn-variation var-default" title="Copy Copas Default" onclick="copyCopas('${node.id}', event)">
+                        <i class="fa-solid fa-copy"></i> Default
+                    </button>`;
+                
+                if (node.variations && node.variations.length > 0) {
+                    variationsHTML += node.variations.map((v, i) => {
+                        const colorClass = `var-color-${i % 6}`; // Looping warna 0 sampai 5
+                        return `<button class="btn-variation ${colorClass}" title="Copy Variasi: ${v.name}" onclick="copyVariation('${node.id}', ${i}, event)">
+                            <i class="fa-solid fa-copy"></i> ${v.name}
+                        </button>`;
+                    }).join('');
+                }
+                variationsHTML += `</div>`;
+
+                return `
+                <div class="list-item" data-id="${node.id}" data-type="copas">
+                    <div class="item-header copas-header">
+                        <div class="item-title">
+                            <i class="fa-solid fa-grip-vertical drag-handle" title="Drag"></i>
+                            <i class="fa-solid fa-file-lines"></i>
+                            <div class="copas-info">
+                                <span class="title-text">${node.title}</span>
+                                <div class="copas-content-wrapper">
+                                    ${imgHTML}
+                                    <div class="copas-preview">${previewText}</div>
+                                </div>
+                                ${variationsHTML}
+                            </div>
+                        </div>
+                        <div class="item-actions">
+                            <i class="fa-solid fa-layer-group btn-icon var-icon" title="Tambah Variasi" onclick="addVariationToNode('${node.id}', event)"></i>
+                            <i class="fa-solid fa-copy btn-icon copy-icon" title="Copy Copas Default" onclick="copyCopas('${node.id}', event)"></i>
+                            <i class="fa-solid fa-pen btn-icon edit-icon" title="Edit Copas" onclick="openEditModal('${node.id}', 'copas', event)"></i>
+                            <i class="fa-solid fa-trash btn-icon delete-icon" title="Hapus" onclick="deleteNode('${node.id}', event)"></i>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        }
+
+        // --- 2. FITUR DRAG & DROP FOLDER ---
+        function initSortable() {
+            const nestedGroups = document.querySelectorAll('.nested-group');
+            nestedGroups.forEach(group => {
+                new Sortable(group, {
+                    group: 'nested', animation: 150, fallbackOnBody: true, swapThreshold: 0.65,
+                    handle: '.drag-handle',
+                    onEnd: function () { 
+                        // Update visibilitas footer setelah drag & drop
+                        document.querySelectorAll('.nested-group').forEach(grp => {
+                            const footer = grp.nextElementSibling;
+                            if (footer && footer.classList.contains('folder-footer')) {
+                                if (grp.children.length > 0) footer.classList.add('has-children');
+                                else footer.classList.remove('has-children');
+                            }
+                        });
+                        saveTreeFromDOM(); 
+                    }
+                });
+            });
+        }
+
+        // --- 3. EKSTRAK DOM & SINKRONISASI KE FIREBASE ---
+        function extractTree(container) {
+            let nodes = [];
+            Array.from(container.children).forEach(el => {
+                if (!el.classList.contains('list-item')) return;
+                const id = el.dataset.id;
+                const type = el.dataset.type;
+                const title = el.querySelector('.title-text').innerText;
+                
+                if (type === 'folder') {
+                    nodes.push({ id: id, type: 'folder', title: title, children: extractTree(el.querySelector('.nested-group')) });
+                    if(!nodeDataStore[id]) nodeDataStore[id] = {id, type};
+                    nodeDataStore[id].title = title;
+                } else {
+                    const storedData = nodeDataStore[id] || {};
+                    nodes.push({ id: id, type: 'copas', title: title, content: storedData.content || '', image: storedData.image || null, variations: storedData.variations || [] });
+                    storedData.title = title;
+                }
+            });
+            return nodes;
+        }
+
+        async function saveTreeFromDOM() {
+            const newTree = extractTree(rootContainer);
+            try { await DOC_REF.set({ tree: newTree }); } 
+            catch (error) { showToast("Gagal menyinkronkan data dengan Firebase."); }
+        }
+
+        // --- 4. BUKA/TUTUP LACI ---
+        window.toggleFolder = (folderId, headerElement, event) => {
+            if (event.target.classList.contains('btn-icon') || event.target.classList.contains('drag-handle')) return;
+            const content = headerElement.nextElementSibling;
+            const footer = content.nextElementSibling; // Menangkap elemen footer
+            const icon = headerElement.querySelector('.fa-folder, .fa-folder-open');
+
+            if (openFolders.has(folderId)) {
+                openFolders.delete(folderId); content.classList.remove('active'); 
+                if (footer && footer.classList.contains('folder-footer')) footer.classList.remove('active');
+                icon.classList.replace('fa-folder-open', 'fa-folder');
+            } else {
+                openFolders.add(folderId); content.classList.add('active'); 
+                if (footer && footer.classList.contains('folder-footer')) footer.classList.add('active');
+                icon.classList.replace('fa-folder', 'fa-folder-open');
+            }
+        };
+
+        // --- 5. LOGIKA UPLOAD GAMBAR & AUTO COMPRESS (<150KB) ---
+        const dropzone = document.getElementById('imageDropzone');
+        const fileInput = document.getElementById('inputFile');
+        const imgPreview = document.getElementById('imagePreview');
+        const dropText = document.getElementById('dropzoneText');
+        const btnRemoveImg = document.getElementById('btnRemoveImage');
+
+        function resetImageUI() {
+            currentImageData = null;
+            imgPreview.style.display = 'none'; imgPreview.src = '';
+            dropText.style.display = 'block'; btnRemoveImg.style.display = 'none';
+        }
+
+        function setImageUI(base64Data) {
+            currentImageData = base64Data;
+            imgPreview.src = base64Data; imgPreview.style.display = 'block';
+            dropText.style.display = 'none'; btnRemoveImg.style.display = 'inline-block';
+        }
+
+        // Engine Kompresi Canvas
+        function processImageFile(file) {
+            if (!file.type.startsWith('image/')) return showToast("File harus berupa gambar!");
+            dropText.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i> Memproses gambar...";
+            
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width; let height = img.height;
+                    
+                    // Resize maksimal 800px agar aman dan ringan
+                    const MAX_SIZE = 800;
+                    if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } 
+                    else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                    
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Loop turunkan kualitas sampai ukuran Base64 < ~150KB
+                    let quality = 0.8;
+                    let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    while (dataUrl.length > 200000 && quality > 0.1) { // 200,000 karakter base64 ≈ 150KB
+                        quality -= 0.1;
+                        dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    }
+                    setImageUI(dataUrl);
+                }
+            };
+        }
+
+        // Event Klik File
+        dropzone.addEventListener('click', (e) => { if (e.target !== btnRemoveImg && !currentImageData) fileInput.click(); });
+        fileInput.addEventListener('change', (e) => { if (e.target.files[0]) processImageFile(e.target.files[0]); });
+        
+        // Event Drag & Drop
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault(); dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) processImageFile(e.dataTransfer.files[0]);
+        });
+
+        // Event Paste (Ctrl + V)
+        document.getElementById('modalCopas').addEventListener('paste', (e) => {
+            if (e.clipboardData.files && e.clipboardData.files[0]) {
+                e.preventDefault(); // Mencegah paste gambar ke dalam textarea teks
+                processImageFile(e.clipboardData.files[0]);
+            }
+        });
+
+        // Hapus Gambar
+        btnRemoveImg.addEventListener('click', (e) => {
+            e.stopPropagation(); resetImageUI();
+            dropText.innerHTML = `<i class="fa-solid fa-cloud-arrow-up" style="font-size: 2em; margin-bottom: 10px;"></i><br>Klik, Paste (Ctrl+V), atau Drag & Drop Gambar di sini`;
+        });
+
+        // --- 6. LOGIKA MODAL (TAMBAH, EDIT, & GAMBAR FOKUS) ---
+        window.closeModal = (modalId) => {
+            document.getElementById(modalId).classList.remove("active");
+            if (modalId !== 'modalImageFocus') { // Reset ID jika bukan menutup gambar
+                editingNodeId = null; targetParentId = null;
+            }
+        }
+
+        window.openImageFocus = (imgSrc, event) => {
+            event.stopPropagation();
+            document.getElementById("focusImage").src = imgSrc;
+            document.getElementById("modalImageFocus").classList.add("active");
+        };
+
+        window.openFolderModal = (parentId, event) => {
+            if(event) event.stopPropagation();
+            targetParentId = parentId; editingNodeId = null;
+            document.getElementById("folderModalTitle").innerText = "Buat Laci Baru";
+            document.getElementById("inputFolderName").value = "";
+            document.getElementById("modalFolder").classList.add("active");
+            document.getElementById("inputFolderName").focus();
+        };
+
+        window.openCopasModal = (parentId, event) => {
+            if(event) event.stopPropagation();
+            targetParentId = parentId; editingNodeId = null;
+            document.getElementById("copasModalTitle").innerText = "Tambah Copas Baru";
+            document.getElementById("inputCopasDesc").value = "";
+            document.getElementById("inputCopasText").value = "";
+            document.getElementById("variationsContainer").innerHTML = ""; // Reset variasi
+            resetImageUI();
+            dropText.innerHTML = `<i class="fa-solid fa-cloud-arrow-up" style="font-size: 2em; margin-bottom: 10px;"></i><br>Klik, Paste (Ctrl+V), atau Drag & Drop Gambar di sini`;
+            
+            document.getElementById("modalCopas").classList.add("active");
+            document.getElementById("inputCopasDesc").focus();
+        };
+
+        window.openEditModal = (nodeId, type, event) => {
+            event.stopPropagation();
+            editingNodeId = nodeId;
+            
+            if (type === 'folder') {
+                document.getElementById("folderModalTitle").innerText = "Edit Laci";
+                document.getElementById("inputFolderName").value = nodeDataStore[nodeId].title;
+                document.getElementById("modalFolder").classList.add("active");
+            } else {
+                document.getElementById("copasModalTitle").innerText = "Edit Copas";
+                const data = nodeDataStore[nodeId];
+                document.getElementById("inputCopasDesc").value = data.title;
+                document.getElementById("inputCopasText").value = data.content;
+                
+                // Render variasi yang sudah ada saat edit
+                const varContainer = document.getElementById("variationsContainer");
+                varContainer.innerHTML = "";
+                if (data.variations) {
+                    data.variations.forEach(v => addVariationField(v.name, v.content));
+                }
+
+                if (data.image) { setImageUI(data.image); } else { resetImageUI(); }
+                document.getElementById("modalCopas").classList.add("active");
+            }
+        };
+
+        // FUNGSI VARIASI
+        window.addVariationField = (name = '', content = '') => {
+            const container = document.getElementById("variationsContainer");
+            const varHtml = `
+                <div class="variation-item" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-top: 10px; border: 1px solid #e1e4e8; position: relative;">
+                    <i class="fa-solid fa-times" style="position: absolute; right: 12px; top: 12px; cursor: pointer; color: #aaa;" onclick="this.parentElement.remove()" title="Hapus Variasi"></i>
+                    <label style="font-size: 0.85em;">Nama Variasi (misal: Warna Biru):</label>
+                    <input type="text" class="var-name" value="${name}" placeholder="Nama Variasi" style="margin-bottom: 8px;">
+                    <label style="font-size: 0.85em;">Isi Copas Variasi:</label>
+                    <textarea class="var-content" rows="3" placeholder="Paste copas variasi di sini...">${content}</textarea>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', varHtml);
+            // Auto scroll ke bawah agar isian variasi baru terlihat
+            const modalBody = document.querySelector('#modalCopas .modal-body');
+            modalBody.scrollTop = modalBody.scrollHeight;
+        };
+
+        window.addVariationToNode = (nodeId, event) => {
+            openEditModal(nodeId, 'copas', event);
+            addVariationField(); // Tambahkan 1 field kosong siap isi
+        };
+
+        // SIMPAN LACI
+        document.getElementById("btnSaveFolder").addEventListener("click", async () => {
+            const title = document.getElementById("inputFolderName").value.trim();
+            if (!title) return showToast("Nama laci wajib diisi!");
+            const btn = document.getElementById("btnSaveFolder"); btn.innerText = "Menyimpan..."; btn.disabled = true;
+
+            if (editingNodeId) {
+                document.querySelector(`[data-id="${editingNodeId}"] .title-text`).innerText = title;
+                nodeDataStore[editingNodeId].title = title;
+            } else {
+                const id = 'folder_' + Date.now();
+                const newNode = { id: id, type: 'folder', title: title, children: [] };
+                nodeDataStore[id] = newNode;
+                insertNewNodeToDOM(targetParentId, generateHTML(newNode));
+            }
+            await saveTreeFromDOM(); 
+            closeModal("modalFolder"); showToast("Laci tersimpan!");
+            btn.innerText = "Simpan"; btn.disabled = false;
+        });
+
+        // SIMPAN PROMPT
+        document.getElementById("btnSaveCopas").addEventListener("click", async () => {
+            const desc = document.getElementById("inputCopasDesc").value.trim();
+            const text = document.getElementById("inputCopasText").value.trim();
+            if (!desc || !text) return showToast("Judul dan isi copas wajib diisi!");
+            
+            // Mengambil semua data variasi
+            const variationItems = document.querySelectorAll('#variationsContainer .variation-item');
+            let variations = [];
+            variationItems.forEach(item => {
+                const vName = item.querySelector('.var-name').value.trim();
+                const vContent = item.querySelector('.var-content').value.trim();
+                if (vName && vContent) variations.push({ name: vName, content: vContent });
+            });
+
+            const btn = document.getElementById("btnSaveCopas"); btn.innerText = "Menyimpan..."; btn.disabled = true;
+
+            if (editingNodeId) {
+                nodeDataStore[editingNodeId] = { id: editingNodeId, type: 'copas', title: desc, content: text, image: currentImageData, variations: variations };
+                const el = document.querySelector(`[data-id="${editingNodeId}"]`);
+                el.outerHTML = generateHTML(nodeDataStore[editingNodeId]); // Timpa HTML lama
+            } else {
+                const id = 'copas_' + Date.now();
+                const newNode = { id: id, type: 'copas', title: desc, content: text, image: currentImageData, variations: variations };
+                nodeDataStore[id] = newNode;
+                insertNewNodeToDOM(targetParentId, generateHTML(newNode));
+            }
+
+            await saveTreeFromDOM(); 
+            closeModal("modalCopas"); showToast("Copas tersimpan!");
+            btn.innerText = "Simpan"; btn.disabled = false;
+        });
+
+        function insertNewNodeToDOM(parentId, htmlString) {
+            if(rootContainer.querySelector('p')) rootContainer.innerHTML = ''; 
+            let targetContainer = parentId === 'root' ? rootContainer : document.querySelector(`[data-id="${parentId}"] .nested-group`);
+            targetContainer.insertAdjacentHTML('beforeend', htmlString);
+            
+            if (parentId !== 'root') {
+                const parentEl = document.querySelector(`[data-id="${parentId}"]`);
+                if (!openFolders.has(parentId)) {
+                    toggleFolder(parentId, parentEl.querySelector('.folder-header'), {target: parentEl});
+                }
+                // Tampilkan footer (karena sekarang folder ini pasti memiliki minimal 1 item)
+                const footer = parentEl.querySelector('.nested-group').nextElementSibling;
+                if (footer && footer.classList.contains('folder-footer')) {
+                    footer.classList.add('has-children');
+                }
+            }
+            initSortable(); 
+        }
+
+        // --- 7. AKSI LAINNYA (HAPUS & COPY) ---
+        window.deleteNode = async (nodeId, event) => {
+            event.stopPropagation();
+            if (!confirm("Hapus item ini? (Semua isi di dalamnya juga akan terhapus!)")) return;
+            
+            const el = document.querySelector(`[data-id="${nodeId}"]`);
+            const parentGroup = el.closest('.nested-group');
+            
+            el.remove();
+            delete nodeDataStore[nodeId];
+            
+            // Sembunyikan footer jika folder menjadi kosong setelah penghapusan
+            if (parentGroup && parentGroup.id !== 'rootContainer' && parentGroup.children.length === 0) {
+                const footer = parentGroup.nextElementSibling;
+                if (footer && footer.classList.contains('folder-footer')) {
+                    footer.classList.remove('has-children');
+                }
+            }
+            
+            await saveTreeFromDOM(); showToast("Berhasil dihapus!");
+        };
+
+        window.copyCopas = (nodeId, event) => {
+            event.stopPropagation();
+            const text = nodeDataStore[nodeId]?.content || '';
+            navigator.clipboard.writeText(text).then(() => showToast("Copas Default berhasil disalin!"));
+        };
+
+        window.copyVariation = (nodeId, varIndex, event) => {
+            event.stopPropagation();
+            const text = nodeDataStore[nodeId]?.variations[varIndex]?.content || '';
+            if(text) {
+                navigator.clipboard.writeText(text).then(() => showToast(`Variasi disalin!`));
+            }
+        };
+
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message; toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 3000);
+        }
+
+        // Menutup modal apa pun (kecuali focus image yang dicegah oleh stopPropagation dari gambar) saat klik background
+        window.onclick = function(event) { if (event.target.classList.contains("modal")) event.target.click(); }
+    </script>
+</body>
+</html>
